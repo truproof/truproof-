@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '../../../lib/db';
 
 // 1. GET Testimonials (Dashboard aur Widget ke liye)
 export async function GET(request) {
