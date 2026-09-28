@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { query } from '../../../lib/db';
 import crypto from 'crypto';
 
 // 1. GET: Fetch all active invite links for dashboard
