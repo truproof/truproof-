@@ -1,57 +1,55 @@
 import { NextResponse } from 'next/server';
-import { query } from '../../../lib/db';
 import crypto from 'crypto';
+import pool from '../../../lib/db';
 
-// 1. GET: Fetch all active invite links for dashboard
-export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId') || 'default-biz';
+export const dynamic = 'force-dynamic';
 
-    const result = await query(
-      `SELECT * FROM "Request" WHERE "businessId" = $1 ORDER BY "createdAt" DESC`,
-      [businessId]
-    );
-
-    return NextResponse.json({ success: true, requests: result.rows });
-  } catch (error) {
-    console.error('Fetch requests error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch requests' }, { status: 500 });
-  }
-}
-
-// 2. POST: Create a single-use 7-day expiring invite link
 export async function POST(request) {
+  let client;
   try {
-    const body = await request.json();
-    const { businessId, clientName, clientEmail, clientPhone } = body;
+    const body = await request.json().catch(() => ({}));
+    const businessId = body.businessId || 'default-biz';
+    const clientName = body.clientName || 'Valued Client';
+    const clientEmail = body.clientEmail || '';
 
-    const targetBusinessId = businessId || 'default-biz';
-    const requestId = 'req_' + Date.now();
+    // 1. Generate unique 32-char token
     const token = crypto.randomBytes(16).toString('hex');
 
-    // 7 Days expiration
+    // 2. 7-Day Expiration calculation
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Save into Neon DB
-    const result = await query(
-      `INSERT INTO "Request" 
-       ("id", "token", "businessId", "clientName", "clientEmail", "clientPhone", "status", "expiresAt") 
-       VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7) 
-       RETURNING *`,
-      [requestId, token, targetBusinessId, clientName || null, clientEmail || null, clientPhone || null, expiresAt]
-    );
+    client = await pool.connect();
 
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://truproof.vercel.app'}/request/${token}`;
+    // 3. Ensure business exists
+    await client.query(`
+      INSERT INTO "Business" ("id", "name", "email", "plan")
+      VALUES ($1, 'TruProof Business', 'admin@truproof.app', 'free')
+      ON CONFLICT ("id") DO NOTHING;
+    `, [businessId]);
 
-    return NextResponse.json({ 
-      success: true, 
-      request: result.rows[0],
-      inviteUrl 
+    // 4. Insert request token into DB
+    await client.query(`
+      INSERT INTO "Request" ("token", "businessId", "clientName", "clientEmail", "status", "expiresAt")
+      VALUES ($1, $2, $3, $4, 'pending', $5)
+    `, [token, businessId, clientName, clientEmail, expiresAt]);
+
+    // 5. Construct invite URL
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://truproof.vercel.app';
+    const inviteUrl = `${baseUrl}/request/${token}`;
+
+    return NextResponse.json({
+      success: true,
+      token,
+      inviteUrl
     });
   } catch (error) {
-    console.error('Create request error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to create invite token' }, { status: 500 });
+    console.error('GENERATE LINK ERROR:', error);
+    return NextResponse.json({
+      success: false,
+      error: error.message || 'Failed to generate link'
+    }, { status: 500 });
+  } finally {
+    if (client) client.release();
   }
 }
