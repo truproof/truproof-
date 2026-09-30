@@ -13,7 +13,7 @@ export async function POST(request) {
 
     client = await pool.connect();
 
-    // 1. Fetch business details & current plan
+    // 1. Fetch business details
     const reviewRes = await client.query('SELECT "businessId" FROM "Testimonial" WHERE "id" = $1', [id]);
     if (reviewRes.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'Review not found' }, { status: 404 });
