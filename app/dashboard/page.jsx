@@ -1,7 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Check, X, Copy, RefreshCw, Star, MessageSquare, Clock, CheckCircle, Sparkles, Loader2, Code, Download, Coins, Video } from 'lucide-react';
+import Link from 'next/link';
+import { 
+  Check, X, Copy, RefreshCw, Star, MessageSquare, Clock, CheckCircle, 
+  Sparkles, Loader2, Code, Download, Coins, Video, ArrowUpRight, Gift, AlertCircle 
+} from 'lucide-react';
 
 export default function FounderDashboard() {
   const [testimonials, setTestimonials] = useState([]);
@@ -14,15 +18,30 @@ export default function FounderDashboard() {
   const [generating, setGenerating] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
 
-  // Entitlement & AI Credits State
+  // Business Entitlements & Usage State
   const [plan, setPlan] = useState('free');
   const [aiCredits, setAiCredits] = useState(3);
+  const [requestsSent, setRequestsSent] = useState(1);
+  const [referralCount, setReferralCount] = useState(0);
   const [generatingAiId, setGeneratingAiId] = useState(null);
   const [aiAssets, setAiAssets] = useState({});
 
   const businessId = 'default-biz';
+  const referralCode = 'TP77X';
+  const referralLink = `https://truproof.vercel.app?ref=${referralCode}`;
   const embedCodeSnippet = `<iframe src="https://truproof.vercel.app/embed/${businessId}" width="100%" height="450" frameborder="0" loading="lazy"></iframe>`;
+
+  // Plan Limits definition
+  const limits = {
+    free: { maxRequests: 10, maxApproved: 3, maxAi: 0 },
+    starter: { maxRequests: 50, maxApproved: 15, maxAi: 3 },
+    pro: { maxRequests: 300, maxApproved: 9999, maxAi: 20 },
+    agency: { maxRequests: 1500, maxApproved: 9999, maxAi: 100 }
+  };
+
+  const currentLimit = limits[plan] || limits.free;
 
   const fetchReviews = async () => {
     setLoading(true);
@@ -43,7 +62,19 @@ export default function FounderDashboard() {
     fetchReviews();
   }, []);
 
+  const totalCount = testimonials.length;
+  const approvedCount = testimonials.filter((t) => t.status === 'approved').length;
+  const pendingCount = testimonials.filter((t) => t.status === 'pending').length;
+
+  const isApprovedLimitReached = plan === 'free' && approvedCount >= currentLimit.maxApproved;
+  const isRequestLimitReached = plan === 'free' && requestsSent >= currentLimit.maxRequests;
+
   const handleModerate = async (id, action) => {
+    if (action === 'approve' && isApprovedLimitReached) {
+      alert('Free Plan limit reached (Max 3 Approved Testimonials). Please upgrade to Starter or Pro to approve more.');
+      return;
+    }
+
     try {
       const res = await fetch('/api/testimonials/moderate', {
         method: 'POST',
@@ -63,7 +94,7 @@ export default function FounderDashboard() {
 
   const handleGenerateAiPack = async (item) => {
     if (aiCredits <= 0) {
-      alert('You have 0 AI Credits remaining. Please upgrade to Pro or purchase an AI top-up.');
+      alert('You have 0 AI Credits remaining. Please upgrade or top-up (+20 Credits for ₹199 / $5).');
       return;
     }
 
@@ -93,6 +124,11 @@ export default function FounderDashboard() {
 
   const handleGenerateLink = async (e) => {
     e.preventDefault();
+    if (isRequestLimitReached) {
+      alert('Monthly invite limit reached (10/10 on Free Plan). Please upgrade to send more invites.');
+      return;
+    }
+
     setGenerating(true);
     try {
       const res = await fetch('/api/requests', {
@@ -107,6 +143,7 @@ export default function FounderDashboard() {
       const data = await res.json();
       if (data.success) {
         setGeneratedLink(data.inviteUrl);
+        setRequestsSent((prev) => prev + 1);
         setClientName('');
         setClientEmail('');
       }
@@ -118,6 +155,10 @@ export default function FounderDashboard() {
   };
 
   const exportCSV = () => {
+    if (plan === 'free' || plan === 'starter') {
+      alert('CSV Export is available on Pro and Agency plans.');
+      return;
+    }
     if (testimonials.length === 0) return;
     const headers = ['ID', 'Client Name', 'Email', 'Rating', 'Review', 'Video URL', 'Status', 'Date'];
     const rows = testimonials.map((t) => [
@@ -140,10 +181,6 @@ export default function FounderDashboard() {
     document.body.removeChild(link);
   };
 
-  const totalCount = testimonials.length;
-  const approvedCount = testimonials.filter((t) => t.status === 'approved').length;
-  const pendingCount = testimonials.filter((t) => t.status === 'pending').length;
-
   const filteredTestimonials = testimonials.filter((t) => {
     if (filter === 'all') return true;
     return t.status === filter;
@@ -151,12 +188,21 @@ export default function FounderDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
+      {/* Top Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <span className="font-black text-xl tracking-tight text-blue-600">TruProof</span>
+          <Link href="/" className="font-black text-xl tracking-tight text-blue-600">
+            TruProof
+          </Link>
           <span className="text-[11px] bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200 uppercase">
             Plan: {plan}
           </span>
+          <Link 
+            href="/pricing"
+            className="hidden sm:inline-flex items-center gap-1 text-[11px] text-blue-600 font-bold hover:underline"
+          >
+            Upgrade Plan <ArrowUpRight className="w-3 h-3" />
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-semibold">
@@ -178,31 +224,78 @@ export default function FounderDashboard() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 space-y-8">
-        {/* Metric Cards */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 space-y-6">
+        {/* Contextual Upgrade Alert if Limits Approaching */}
+        {isApprovedLimitReached && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 text-xs text-amber-800">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>You have reached the Free Plan limit of <strong>3 approved testimonials</strong>. Upgrade to Pro for unlimited reviews and removal of TruProof branding.</span>
+            </div>
+            <Link
+              href="/pricing"
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition"
+            >
+              Upgrade Now
+            </Link>
+          </div>
+        )}
+
+        {/* Metric Cards & Usage Meters */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-sm">
-            <div>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Received</p>
-              <h3 className="text-2xl font-bold mt-1 text-slate-800">{totalCount}</h3>
+              <MessageSquare className="w-5 h-5 text-blue-500 opacity-40" />
             </div>
-            <MessageSquare className="w-8 h-8 text-blue-500 opacity-20" />
+            <h3 className="text-2xl font-bold text-slate-800">{totalCount}</h3>
+            <p className="text-[11px] text-slate-400">Monthly Invites: {requestsSent} / {currentLimit.maxRequests}</p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-sm">
-            <div>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Approved (Live)</p>
-              <h3 className="text-2xl font-bold mt-1 text-emerald-600">{approvedCount}</h3>
+              <CheckCircle className="w-5 h-5 text-emerald-500 opacity-40" />
             </div>
-            <CheckCircle className="w-8 h-8 text-emerald-500 opacity-20" />
+            <h3 className="text-2xl font-bold text-emerald-600">{approvedCount}</h3>
+            <p className="text-[11px] text-slate-400">
+              Limit: {plan === 'free' ? `${approvedCount} / 3 approved` : 'Unlimited'}
+            </p>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-xl p-5 flex items-center justify-between shadow-sm">
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Pending Review</p>
-              <h3 className="text-2xl font-bold mt-1 text-amber-500">{pendingCount}</h3>
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Pending Moderation</p>
+              <Clock className="w-5 h-5 text-amber-500 opacity-40" />
             </div>
-            <Clock className="w-8 h-8 text-amber-500 opacity-20" />
+            <h3 className="text-2xl font-bold text-amber-500">{pendingCount}</h3>
+            <p className="text-[11px] text-slate-400">Ready to review & publish</p>
+          </div>
+        </div>
+
+        {/* Viral Growth & Referral Loop Banner */}
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <Gift className="w-4 h-4 text-indigo-600" />
+              <span className="font-bold text-xs text-indigo-950 uppercase tracking-wider">Referral Program</span>
+            </div>
+            <p className="text-xs text-indigo-900">
+              <strong>Invite a founder, get 1 month of Pro free!</strong> Share your link with creators and SaaS builders.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-white border border-indigo-200 rounded-xl p-1.5 w-full sm:w-auto">
+            <code className="text-xs font-mono text-indigo-900 px-2 truncate max-w-[220px]">{referralLink}</code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(referralLink);
+                setCopiedRef(true);
+                setTimeout(() => setCopiedRef(false), 2000);
+              }}
+              className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition"
+            >
+              {copiedRef ? 'Copied' : 'Copy'}
+            </button>
           </div>
         </div>
 
@@ -229,7 +322,7 @@ export default function FounderDashboard() {
           </div>
         </div>
 
-        {/* Generate Link */}
+        {/* Generate Link Box */}
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-800 mb-1">Create 7-Day Expiring Invite Link</h2>
           <p className="text-xs text-slate-500 mb-4">Send this secure link to verified clients to collect text or video reviews.</p>
@@ -251,10 +344,10 @@ export default function FounderDashboard() {
             />
             <button
               type="submit"
-              disabled={generating}
+              disabled={generating || isRequestLimitReached}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg px-4 py-2 transition disabled:opacity-50"
             >
-              {generating ? 'Generating...' : 'Generate Invite Link'}
+              {generating ? 'Generating...' : isRequestLimitReached ? 'Limit Reached' : 'Generate Invite Link'}
             </button>
           </form>
 
