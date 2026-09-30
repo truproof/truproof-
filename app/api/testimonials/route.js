@@ -4,11 +4,10 @@ import pool from '../../../lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// Zod Schema allowing optional videoUrl
 const testimonialSchema = z.object({
   token: z.string().optional().default(''),
   rating: z.number().int().min(1).max(5),
-  reviewText: z.string().min(3, 'Review must be at least 3 characters').max(2000),
+  reviewText: z.string().min(2, 'Review too short').max(3000),
   clientName: z.string().min(1, 'Name is required').max(100),
   clientEmail: z.string().email('Invalid email address'),
   company: z.string().max(100).optional().default(''),
@@ -16,14 +15,13 @@ const testimonialSchema = z.object({
   avatarUrl: z.string().optional().default('')
 });
 
-function sanitizeInput(str) {
+function sanitize(str) {
   if (typeof str !== 'string') return '';
-  return str
-    .replace(/<[^>]*>?/gm, '')
-    .trim();
+  return str.replace(/<[^>]*>?/gm, '').trim();
 }
 
 export async function GET(request) {
+  let client;
   try {
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId') || 'default-biz';
@@ -42,43 +40,47 @@ export async function GET(request) {
 
     queryText += ' ORDER BY "createdAt" DESC';
 
-    const client = await pool.connect();
+    client = await pool.connect();
     const result = await client.query(queryText, queryParams);
-    client.release();
 
     const response = NextResponse.json({ success: true, testimonials: result.rows });
-
     if (!status || status === 'approved') {
       response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     }
-
     return response;
   } catch (error) {
     console.error('FETCH ERROR:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch reviews' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    if (client) client.release();
   }
 }
 
 export async function POST(request) {
+  let client;
   try {
     const body = await request.json().catch(() => ({}));
-    
-    const parsedData = testimonialSchema.safeParse(body);
-    if (!parsedData.success) {
-      const errorMsg = parsedData.error.errors.map(e => e.message).join(', ');
-      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 });
+    const parsed = testimonialSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json({ 
+        success: false, 
+        error: parsed.error.errors.map(e => e.message).join(', ') 
+      }, { status: 400 });
     }
 
-    const { token, rating, reviewText, clientName, clientEmail, company, videoUrl, avatarUrl } = parsedData.data;
+    const { token, rating, reviewText, clientName, clientEmail, company, videoUrl, avatarUrl } = parsed.data;
 
-    const cleanReviewText = sanitizeInput(reviewText);
-    const cleanName = sanitizeInput(clientName);
-    const cleanCompany = sanitizeInput(company);
-    const cleanVideoUrl = sanitizeInput(videoUrl);
+    client = await pool.connect();
 
-    const client = await pool.connect();
+    // 1. Ensure default-biz exists to prevent foreign key errors
+    await client.query(`
+      INSERT INTO "Business" ("id", "name", "email", "plan")
+      VALUES ('default-biz', 'TruProof Demo', 'admin@truproof.app', 'pro')
+      ON CONFLICT ("id") DO NOTHING;
+    `);
 
-    // Check token if present
+    // 2. Resolve businessId from token if valid
     let businessId = 'default-biz';
     if (token) {
       const reqRes = await client.query(
@@ -90,23 +92,39 @@ export async function POST(request) {
       }
     }
 
-    // Insert sanitized review with videoUrl
+    // 3. Insert Testimonial
     const insertRes = await client.query(
-      `INSERT INTO "Testimonial" ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "videoUrl", "status")
+      `INSERT INTO "Testimonial" 
+       ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "videoUrl", "status")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [businessId, cleanName, clientEmail, cleanCompany, avatarUrl || '', rating, cleanReviewText, cleanVideoUrl, 'approved']
+      [
+        businessId,
+        sanitize(clientName),
+        sanitize(clientEmail),
+        sanitize(company),
+        sanitize(avatarUrl),
+        rating,
+        sanitize(reviewText),
+        sanitize(videoUrl),
+        'approved'
+      ]
     );
 
-    // Mark token used
+    // 4. Mark token used if applicable
     if (token) {
       await client.query('UPDATE "Request" SET "isUsed" = true WHERE "token" = $1', [token]);
     }
 
-    client.release();
     return NextResponse.json({ success: true, testimonial: insertRes.rows[0] });
   } catch (error) {
-    console.error('SUBMISSION ERROR:', error);
-    return NextResponse.json({ success: false, error: 'Database submission failed' }, { status: 500 });
+    console.error('SUBMIT DATABASE ERROR:', error);
+    // Return the actual SQL error message so we know exactly what is wrong
+    return NextResponse.json({ 
+      success: false, 
+      error: `Database: ${error.message}` 
+    }, { status: 500 });
+  } finally {
+    if (client) client.release();
   }
 }
