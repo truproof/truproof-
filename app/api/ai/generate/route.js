@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 
-export async function POST(request) {
+export const dynamic = 'force-dynamic';
+
+export async function POST(req) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const { reviewText, clientName, company } = body;
+    const body = await req.json();
+    const reviewText = body?.reviewText || '';
+    const clientName = body?.clientName || 'Valued Client';
+    const company = body?.company || 'Company';
 
     if (!reviewText) {
       return NextResponse.json({ success: false, error: 'Review text is required' }, { status: 400 });
@@ -13,7 +17,7 @@ export async function POST(request) {
 
     if (apiKey) {
       try {
-        const response = await fetch(
+        const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
           {
             method: 'POST',
@@ -23,54 +27,42 @@ export async function POST(request) {
                 {
                   parts: [
                     {
-                      text: `You are a high-converting B2B SaaS copywriter. Create 4 marketing assets based on this testimonial:
-Review: "${reviewText}"
-Client: "${clientName || 'Client'}"
-Company: "${company || 'Company'}"
-
-Respond ONLY with valid JSON in this exact structure:
-{
-  "linkedInPost": "Engaging founder post with emojis and key takeaways",
-  "twitterThread": "Punchy tweet summarizing customer win",
-  "caseStudy": "3-sentence micro case study (Problem, Outcome, Quote)",
-  "adCopy": "Compelling headline and 1-line ad description"
-}`
+                      text: `You are a B2B SaaS marketing copywriter. Based on this review:
+"${reviewText}" from ${clientName} (${company}).
+Output ONLY valid JSON (no markdown ticks, no backticks, no wrapping text):
+{"linkedInPost":"Engaging story post","twitterThread":"Punchy customer proof tweet","caseStudy":"Short 3-sentence case study","adCopy":"High converting ad headline & hook"}`
                     }
                   ]
                 }
-              ],
-              generationConfig: {
-                responseMimeType: 'application/json'
-              }
-            }
+              ]
+            })
           }
         );
 
-        if (response.ok) {
-          const result = await response.json();
-          const candidateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidateText) {
-            const parsed = JSON.parse(candidateText);
-            return NextResponse.json({ success: true, assets: parsed });
-          }
+        if (geminiRes.ok) {
+          const rawData = await geminiRes.json();
+          const rawText = rawData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+          const parsed = JSON.parse(cleanJson);
+          return NextResponse.json({ success: true, assets: parsed });
         }
       } catch (aiErr) {
-        console.error('Gemini API call failed, applying fallback:', aiErr);
+        console.error('Gemini fetch parse fallback triggered:', aiErr);
       }
     }
 
-    // High-converting fallback template (guarantees UI never fails)
+    // Rock-solid fallback (zero downtime guaranteed)
     return NextResponse.json({
       success: true,
       assets: {
-        linkedInPost: `Excited to see real impact for our clients! 🚀\n\n"${reviewText}"\n\nBig thanks to ${clientName || 'our partners'} at ${company || 'their team'} for trusting TruProof. Building trust with automated proof is the easiest growth lever in 2026.`,
-        twitterThread: `Customer proof > clever marketing.\n\n"${reviewText}"\n\nHow ${clientName || 'founders'} convert trust into pipeline with TruProof. 👇`,
-        caseStudy: `Problem: Low landing page conversion and manual review chasing.\nOutcome: Fast, verified client feedback collection.\nQuote: "${reviewText}"`,
-        adCopy: `Turn your customer praise into paying users: "${reviewText.slice(0, 70)}..."`
+        linkedInPost: `Excited to see real impact for our clients! 🚀\n\n"${reviewText}"\n\nBig thanks to ${clientName} at ${company} for trusting us. Automated proof is the easiest growth lever in 2026.`,
+        twitterThread: `Customer proof > clever marketing.\n\n"${reviewText}"\n\nHow ${clientName} turns trust into pipeline with TruProof. 👇`,
+        caseStudy: `Problem: Low landing page conversions.\nOutcome: Fast, verified client feedback collection.\nQuote: "${reviewText}"`,
+        adCopy: `Turn your customer praise into paying users: "${reviewText.slice(0, 60)}..."`
       }
     });
-  } catch (error) {
-    console.error('SERVER ROUTE ERROR:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    console.error('GLOBAL AI ROUTE ERROR:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
