@@ -1,7 +1,37 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import pool from '../../../lib/db';
 
 export const dynamic = 'force-dynamic';
+
+// 1. Strict Zod Schema validation
+const testimonialSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  rating: z.number().int().min(1).max(5),
+  reviewText: z.string().min(5, 'Review must be at least 5 characters').max(2000),
+  clientName: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  clientEmail: z.string().email('Invalid email address'),
+  company: z.string().max(100).optional().default(''),
+  avatarUrl: z.string().url().optional().or(z.literal(''))
+});
+
+// Helper: Basic HTML/XSS Sanitizer (Strip harmful tags)
+function sanitizeInput(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/<[^>]*>?/gm, '') // Remove HTML tags
+    .replace(/[<>'"&]/g, (char) => {
+      switch (char) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case "'": return '&#39;';
+        case '"': return '&quot;';
+        case '&': return '&amp;';
+        default: return char;
+      }
+    })
+    .trim();
+}
 
 export async function GET(request) {
   try {
@@ -16,7 +46,7 @@ export async function GET(request) {
       queryText += ' AND "status" = $2';
       queryParams.push(status);
     } else if (!status) {
-      // Default widget behavior: serve only approved reviews
+      // Default: serve only approved reviews to widgets
       queryText += ' AND "status" = $2';
       queryParams.push('approved');
     }
@@ -29,26 +59,35 @@ export async function GET(request) {
 
     const response = NextResponse.json({ success: true, testimonials: result.rows });
 
-    // Edge caching: 60 sec cache on CDN, background revalidate for 300 sec
+    // Edge caching on CDN
     if (!status || status === 'approved') {
       response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     }
 
     return response;
   } catch (error) {
-    console.error('FETCH TESTIMONIALS ERROR:', error);
-    return NextResponse.json({ success: false, error: 'Database fetch failed' }, { status: 500 });
+    console.error('FETCH ERROR:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch reviews' }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { token, rating, reviewText, clientName, clientEmail, company, avatarUrl } = body;
-
-    if (!rating || !reviewText || !clientName) {
-      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
+    const body = await request.json().catch(() => ({}));
+    
+    // Zod parsing & validation
+    const parsedData = testimonialSchema.safeParse(body);
+    if (!parsedData.success) {
+      const errorMsg = parsedData.error.errors.map(e => e.message).join(', ');
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 });
     }
+
+    const { token, rating, reviewText, clientName, clientEmail, company, avatarUrl } = parsedData.data;
+
+    // Sanitize text inputs against XSS attacks
+    const cleanReviewText = sanitizeInput(reviewText);
+    const cleanName = sanitizeInput(clientName);
+    const cleanCompany = sanitizeInput(company);
 
     const client = await pool.connect();
 
@@ -60,15 +99,15 @@ export async function POST(request) {
 
     const businessId = reqRes.rows[0]?.businessId || 'default-biz';
 
-    // Insert review
+    // Insert sanitized review
     const insertRes = await client.query(
       `INSERT INTO "Testimonial" ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "status")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [businessId, clientName, clientEmail, company || '', avatarUrl || '', rating, reviewText, 'approved']
+      [businessId, cleanName, clientEmail, cleanCompany, avatarUrl || '', rating, cleanReviewText, 'approved']
     );
 
-    // Mark token used
+    // Invalidate used token
     if (token && reqRes.rows.length > 0) {
       await client.query('UPDATE "Request" SET "isUsed" = true WHERE "token" = $1', [token]);
     }
