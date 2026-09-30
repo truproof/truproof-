@@ -1,69 +1,82 @@
 import { NextResponse } from 'next/server';
-import { query } from '../../../lib/db';
+import pool from '../../../lib/db';
 
-// 1. GET Testimonials (Dashboard aur Widget ke liye)
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const businessId = searchParams.get('businessId') || 'default-biz';
-    const status = searchParams.get('status') || 'approved';
+    const status = searchParams.get('status');
 
-    let result;
-    if (status === 'all') {
-      result = await query(
-        `SELECT * FROM "Testimonial" WHERE "businessId" = $1 ORDER BY "createdAt" DESC`,
-        [businessId]
-      );
-    } else {
-      result = await query(
-        `SELECT * FROM "Testimonial" WHERE "businessId" = $1 AND "status" = $2 ORDER BY "createdAt" DESC`,
-        [businessId, status]
-      );
+    let queryText = 'SELECT * FROM "Testimonial" WHERE "businessId" = $1';
+    let queryParams = [businessId];
+
+    if (status && status !== 'all') {
+      queryText += ' AND "status" = $2';
+      queryParams.push(status);
+    } else if (!status) {
+      // Default widget behavior: serve only approved reviews
+      queryText += ' AND "status" = $2';
+      queryParams.push('approved');
     }
 
-    return NextResponse.json({ success: true, testimonials: result.rows });
+    queryText += ' ORDER BY "createdAt" DESC';
+
+    const client = await pool.connect();
+    const result = await client.query(queryText, queryParams);
+    client.release();
+
+    const response = NextResponse.json({ success: true, testimonials: result.rows });
+
+    // Edge caching: 60 sec cache on CDN, background revalidate for 300 sec
+    if (!status || status === 'approved') {
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    }
+
+    return response;
   } catch (error) {
-    console.error('Fetch testimonials error:', error);
+    console.error('FETCH TESTIMONIALS ERROR:', error);
     return NextResponse.json({ success: false, error: 'Database fetch failed' }, { status: 500 });
   }
 }
 
-// 2. POST Testimonial (Real Database me review save karein)
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { clientName, clientEmail, company, rating, reviewText, videoUrl, businessId } = body;
+    const { token, rating, reviewText, clientName, clientEmail, company, avatarUrl } = body;
 
-    if (!clientName || !clientEmail || !reviewText) {
-      return NextResponse.json(
-        { success: false, error: 'Name, email and review text are required' },
-        { status: 400 }
-      );
+    if (!rating || !reviewText || !clientName) {
+      return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
     }
 
-    const targetBusinessId = businessId || 'default-biz';
-    const id = 'test_' + Date.now();
+    const client = await pool.connect();
 
-    // Default business check/create
-    await query(
-      `INSERT INTO "Business" ("id", "name", "email") 
-       VALUES ($1, 'TruProof Business', 'admin@truproof.com') 
-       ON CONFLICT ("id") DO NOTHING`,
-      [targetBusinessId]
+    // Verify token validity
+    const reqRes = await client.query(
+      'SELECT "businessId" FROM "Request" WHERE "token" = $1 AND "isUsed" = false AND "expiresAt" > NOW()',
+      [token]
     );
 
-    // Neon PostgreSQL me save karein
-    const result = await query(
-      `INSERT INTO "Testimonial" 
-       ("id", "businessId", "clientName", "clientEmail", "company", "rating", "reviewText", "videoUrl", "status") 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved') 
+    const businessId = reqRes.rows[0]?.businessId || 'default-biz';
+
+    // Insert review
+    const insertRes = await client.query(
+      `INSERT INTO "Testimonial" ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "status")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [id, targetBusinessId, clientName, clientEmail, company || '', rating || 5, reviewText, videoUrl || '']
+      [businessId, clientName, clientEmail, company || '', avatarUrl || '', rating, reviewText, 'approved']
     );
 
-    return NextResponse.json({ success: true, testimonial: result.rows[0] });
+    // Mark token used
+    if (token && reqRes.rows.length > 0) {
+      await client.query('UPDATE "Request" SET "isUsed" = true WHERE "token" = $1', [token]);
+    }
+
+    client.release();
+    return NextResponse.json({ success: true, testimonial: insertRes.rows[0] });
   } catch (error) {
-    console.error('Save testimonial error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to save to database' }, { status: 500 });
+    console.error('SUBMISSION ERROR:', error);
+    return NextResponse.json({ success: false, error: 'Submission failed' }, { status: 500 });
   }
 }
