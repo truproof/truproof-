@@ -6,8 +6,8 @@ import { ArrowRight, CheckCircle2, Sparkles, Code2, Send, ShieldCheck, FileText,
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState('widget');
-  const [currency, setCurrency] = useState('INR'); // 'INR' or 'USD'
-  const [billing, setBilling] = useState('monthly'); // 'monthly' or 'yearly'
+  const [currency, setCurrency] = useState('INR');
+  const [billing, setBilling] = useState('monthly');
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white overflow-x-hidden">
@@ -165,8 +165,8 @@ export default function HomePage() {
               <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" /> 10 requests / month</li>
               <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" /> 3 approved testimonials</li>
               <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" /> 1 Embed Widget</li>
-              <li className="flex items-start gap-2 text-slate-500"><X className="w-4 h-4 shrink-0" /> TruProof branding on widget</li>
-              <li className="flex items-start gap-2 text-slate-500"><X className="w-4 h-4 shrink-0" /> No AI Credits</li>
+              <li className="flex items-start gap-2 text-slate-500"><span className="text-slate-600 font-bold shrink-0">✕</span> TruProof branding on widget</li>
+              <li className="flex items-start gap-2 text-slate-500"><span className="text-slate-600 font-bold shrink-0">✕</span> No AI Credits</li>
             </ul>
             <Link href="/dashboard" className="mt-6 block text-center bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">Start Free</Link>
           </div>
@@ -186,7 +186,7 @@ export default function HomePage() {
               <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 15 approved testimonials</li>
               <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Email request templates</li>
               <li className="flex items-start gap-2 text-emerald-200"><CheckCircle2 className="w-4 h-4 shrink-0" /> 3 Trial AI Credits</li>
-              <li className="flex items-start gap-2 text-slate-500"><X className="w-4 h-4 shrink-0" /> TruProof branding on widget</li>
+              <li className="flex items-start gap-2 text-slate-500"><span className="text-slate-600 font-bold shrink-0">✕</span> TruProof branding on widget</li>
             </ul>
             <Link href="/dashboard" className="mt-6 block text-center bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">Upgrade to Starter</Link>
           </div>
@@ -251,7 +251,7 @@ export default function HomePage() {
         {/* AI Logic Footer */}
         <div className="max-w-4xl mx-auto pt-4 flex flex-col items-center text-center">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-full">
-            <Info className="w-3.5 h-3.5 text-blue-400" />
+            <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
             <span><strong>What is an AI Pack?</strong> 1 Pack = turns 1 testimonial into a Case Study, LinkedIn post, X thread, and Ad copy.</span>
           </div>
           <p className="text-[10px] text-slate-500 mt-2">Need more AI? Top-up anytime ({currency === 'INR' ? '₹199' : '$5'} for 20 AI packs).</p>
