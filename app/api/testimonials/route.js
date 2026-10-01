@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 
 const testimonialSchema = z.object({
   token: z.string().optional().default(''),
+  businessId: z.string().optional().default(''),
   rating: z.number().int().min(1).max(5),
   reviewText: z.string().min(2, 'Review too short').max(3000),
   clientName: z.string().min(1, 'Name is required').max(100),
@@ -33,9 +34,6 @@ export async function GET(request) {
     if (status && status !== 'all') {
       queryText += ' AND "status" = $2';
       queryParams.push(status);
-    } else if (!status) {
-      queryText += ' AND "status" = $2';
-      queryParams.push('approved');
     }
 
     queryText += ' ORDER BY "createdAt" DESC';
@@ -43,11 +41,7 @@ export async function GET(request) {
     client = await pool.connect();
     const result = await client.query(queryText, queryParams);
 
-    const response = NextResponse.json({ success: true, testimonials: result.rows });
-    if (!status || status === 'approved') {
-      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
-    }
-    return response;
+    return NextResponse.json({ success: true, testimonials: result.rows });
   } catch (error) {
     console.error('FETCH ERROR:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -69,37 +63,37 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
-    const { token, rating, reviewText, clientName, clientEmail, company, videoUrl, avatarUrl } = parsed.data;
+    const { token, businessId: bodyBizId, rating, reviewText, clientName, clientEmail, company, videoUrl, avatarUrl } = parsed.data;
 
     client = await pool.connect();
 
-    // 1. Ensure default-biz exists to prevent foreign key errors
-    await client.query(`
-      INSERT INTO "Business" ("id", "name", "email", "plan")
-      VALUES ('default-biz', 'TruProof Demo', 'admin@truproof.app', 'pro')
-      ON CONFLICT ("id") DO NOTHING;
-    `);
-
-    // 2. Resolve businessId from token if valid
-    let businessId = 'default-biz';
+    // 1. Resolve businessId from token or payload
+    let targetBusinessId = bodyBizId || 'default-biz';
     if (token) {
       const reqRes = await client.query(
-        'SELECT "businessId" FROM "Request" WHERE "token" = $1 AND "isUsed" = false AND "expiresAt" > NOW()',
+        'SELECT "businessId" FROM "Request" WHERE "token" = $1',
         [token]
       );
-      if (reqRes.rows.length > 0) {
-        businessId = reqRes.rows[0].businessId;
+      if (reqRes.rows.length > 0 && reqRes.rows[0].businessId) {
+        targetBusinessId = reqRes.rows[0].businessId;
       }
     }
 
-    // 3. Insert Testimonial
+    // 2. Ensure Business row exists for this businessId to avoid foreign key failure
+    await client.query(`
+      INSERT INTO "Business" ("id", "name", "email", "plan")
+      VALUES ($1, $2, $3, 'free')
+      ON CONFLICT ("id") DO NOTHING;
+    `, [targetBusinessId, 'TruProof User', 'user@truproof.app']);
+
+    // 3. Insert Testimonial with 'pending' status so it shows up in moderation queue
     const insertRes = await client.query(
       `INSERT INTO "Testimonial" 
        ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "videoUrl", "status")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
       [
-        businessId,
+        targetBusinessId,
         sanitize(clientName),
         sanitize(clientEmail),
         sanitize(company),
@@ -107,7 +101,7 @@ export async function POST(request) {
         rating,
         sanitize(reviewText),
         sanitize(videoUrl),
-        'approved'
+        'pending'
       ]
     );
 
@@ -119,7 +113,6 @@ export async function POST(request) {
     return NextResponse.json({ success: true, testimonial: insertRes.rows[0] });
   } catch (error) {
     console.error('SUBMIT DATABASE ERROR:', error);
-    // Return the actual SQL error message so we know exactly what is wrong
     return NextResponse.json({ 
       success: false, 
       error: `Database: ${error.message}` 
