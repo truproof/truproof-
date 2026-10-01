@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser, UserButton } from '@clerk/nextjs';
+import { useUser, UserButton, RedirectToSignIn } from '@clerk/nextjs';
 import { 
   Check, X, Copy, RefreshCw, Star, MessageSquare, Clock, CheckCircle, 
   Sparkles, Loader2, Code, Download, Coins, Video, ArrowUpRight, Gift, AlertCircle 
@@ -46,11 +46,11 @@ export default function FounderDashboard() {
 
   const currentLimit = limits[plan] || limits.free;
 
+  // Saare testimonials fetch karne ke liye (bina ID restriction ke taaki koi review miss na ho)
   const fetchReviews = async () => {
-    if (!user) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/testimonials?businessId=${businessId}&status=all`);
+      const res = await fetch(`/api/testimonials?status=all`);
       const data = await res.json();
       if (data.success) {
         setTestimonials(data.testimonials || []);
@@ -200,6 +200,10 @@ export default function FounderDashboard() {
     );
   }
 
+  if (!user) {
+    return <RedirectToSignIn />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
       {/* Top Header */}
@@ -290,7 +294,7 @@ export default function FounderDashboard() {
           </div>
         </div>
 
-        {/* Viral Growth & Referral Loop Banner */}
+        {/* Referral Loop Banner */}
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2">
