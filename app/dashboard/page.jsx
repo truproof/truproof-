@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useUser, UserButton } from '@clerk/nextjs';
 import { 
   Check, X, Copy, RefreshCw, Star, MessageSquare, Clock, CheckCircle, 
   Sparkles, Loader2, Code, Download, Coins, Video, ArrowUpRight, Gift, AlertCircle 
 } from 'lucide-react';
 
 export default function FounderDashboard() {
+  const { user, isLoaded } = useUser();
+  const businessId = user?.id || 'default-biz';
+
   const [testimonials, setTestimonials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -28,8 +32,7 @@ export default function FounderDashboard() {
   const [generatingAiId, setGeneratingAiId] = useState(null);
   const [aiAssets, setAiAssets] = useState({});
 
-  const businessId = 'default-biz';
-  const referralCode = 'TP77X';
+  const referralCode = user?.id ? user.id.slice(-6).toUpperCase() : 'TRU77';
   const referralLink = `https://truproof.vercel.app?ref=${referralCode}`;
   const embedCodeSnippet = `<iframe src="https://truproof.vercel.app/embed/${businessId}" width="100%" height="450" frameborder="0" loading="lazy"></iframe>`;
 
@@ -44,6 +47,7 @@ export default function FounderDashboard() {
   const currentLimit = limits[plan] || limits.free;
 
   const fetchReviews = async () => {
+    if (!user) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/testimonials?businessId=${businessId}&status=all`);
@@ -59,8 +63,10 @@ export default function FounderDashboard() {
   };
 
   useEffect(() => {
-    fetchReviews();
-  }, []);
+    if (isLoaded && user) {
+      fetchReviews();
+    }
+  }, [isLoaded, user]);
 
   const totalCount = testimonials.length;
   const approvedCount = testimonials.filter((t) => t.status === 'approved').length;
@@ -186,6 +192,14 @@ export default function FounderDashboard() {
     return t.status === filter;
   });
 
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
       {/* Top Header */}
@@ -221,6 +235,9 @@ export default function FounderDashboard() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
+          <div className="ml-1 border-l border-slate-200 pl-3 flex items-center">
+            <UserButton afterSignOutUrl="/" />
+          </div>
         </div>
       </header>
 
