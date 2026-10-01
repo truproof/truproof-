@@ -8,47 +8,33 @@ export async function POST(request) {
   let client;
   try {
     const body = await request.json().catch(() => ({}));
-    const businessId = body.businessId || 'default-biz';
-    const clientName = body.clientName || 'Valued Client';
-    const clientEmail = body.clientEmail || '';
+    const { businessId = 'default-biz', clientName = '', clientEmail = '' } = body;
 
-    // 1. Generate unique 32-char token
     const token = crypto.randomBytes(16).toString('hex');
-
-    // 2. 7-Day Expiration calculation
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     client = await pool.connect();
 
-    // 3. Ensure business exists
+    // Ensure business row exists
     await client.query(`
       INSERT INTO "Business" ("id", "name", "email", "plan")
-      VALUES ($1, 'TruProof Business', 'admin@truproof.app', 'free')
+      VALUES ($1, $2, $3, 'free')
       ON CONFLICT ("id") DO NOTHING;
-    `, [businessId]);
+    `, [businessId, clientName || 'TruProof Founder', clientEmail || 'user@truproof.app']);
 
-    // 4. Insert request token into DB
+    // Insert Request token linked directly to this businessId
     await client.query(`
-      INSERT INTO "Request" ("token", "businessId", "clientName", "clientEmail", "status", "expiresAt")
-      VALUES ($1, $2, $3, $4, 'pending', $5)
+      INSERT INTO "Request" ("token", "businessId", "clientName", "clientEmail", "expiresAt", "isUsed")
+      VALUES ($1, $2, $3, $4, $5, false)
     `, [token, businessId, clientName, clientEmail, expiresAt]);
 
-    // 5. Construct invite URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://truproof.vercel.app';
-    const inviteUrl = `${baseUrl}/request/${token}`;
+    const origin = process.env.NEXT_PUBLIC_APP_URL || 'https://truproof.vercel.app';
+    const inviteUrl = `${origin}/request/${token}`;
 
-    return NextResponse.json({
-      success: true,
-      token,
-      inviteUrl
-    });
+    return NextResponse.json({ success: true, inviteUrl });
   } catch (error) {
-    console.error('GENERATE LINK ERROR:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'Failed to generate link'
-    }, { status: 500 });
+    console.error('REQUEST TOKEN ERROR:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   } finally {
     if (client) client.release();
   }
