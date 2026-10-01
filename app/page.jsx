@@ -1,279 +1,531 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Sparkles, Code2, Send, ShieldCheck, FileText, Star, Zap, Info } from 'lucide-react';
+import { useUser, UserButton, RedirectToSignIn } from '@clerk/nextjs';
+import { 
+  Check, X, Copy, RefreshCw, Star, MessageSquare, Clock, CheckCircle, 
+  Sparkles, Loader2, Code, Download, Coins, Video, ArrowUpRight, Gift, AlertCircle 
+} from 'lucide-react';
 
-export default function HomePage() {
-  const [activeTab, setActiveTab] = useState('widget');
-  const [currency, setCurrency] = useState('INR');
-  const [billing, setBilling] = useState('monthly');
+export default function FounderDashboard() {
+  const { user, isLoaded } = useUser();
+  const businessId = user?.id || 'default-biz';
+
+  const [testimonials, setTestimonials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  const [clientName, setClientName] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [generatedLink, setGeneratedLink] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+
+  // Business Entitlements & Usage State
+  const [plan, setPlan] = useState('free');
+  const [aiCredits, setAiCredits] = useState(3);
+  const [requestsSent, setRequestsSent] = useState(1);
+  const [referralCount, setReferralCount] = useState(0);
+  const [generatingAiId, setGeneratingAiId] = useState(null);
+  const [aiAssets, setAiAssets] = useState({});
+
+  const referralCode = user?.id ? user.id.slice(-6).toUpperCase() : 'TRU77';
+  const referralLink = `https://truproof.vercel.app?ref=${referralCode}`;
+  const embedCodeSnippet = `<iframe src="https://truproof.vercel.app/embed/${businessId}" width="100%" height="450" frameborder="0" loading="lazy"></iframe>`;
+
+  // Plan Limits definition
+  const limits = {
+    free: { maxRequests: 10, maxApproved: 3, maxAi: 0 },
+    starter: { maxRequests: 50, maxApproved: 15, maxAi: 3 },
+    pro: { maxRequests: 300, maxApproved: 9999, maxAi: 20 },
+    agency: { maxRequests: 1500, maxApproved: 9999, maxAi: 100 }
+  };
+
+  const currentLimit = limits[plan] || limits.free;
+
+  const fetchReviews = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/testimonials?businessId=${businessId}&status=all`);
+      const data = await res.json();
+      if (data.success) {
+        setTestimonials(data.testimonials || []);
+      }
+    } catch (err) {
+      console.error('Failed to load testimonials:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      fetchReviews();
+    }
+  }, [isLoaded, user]);
+
+  const totalCount = testimonials.length;
+  const approvedCount = testimonials.filter((t) => t.status === 'approved').length;
+  const pendingCount = testimonials.filter((t) => t.status === 'pending').length;
+
+  const isApprovedLimitReached = plan === 'free' && approvedCount >= currentLimit.maxApproved;
+  const isRequestLimitReached = plan === 'free' && requestsSent >= currentLimit.maxRequests;
+
+  const handleModerate = async (id, action) => {
+    if (action === 'approve' && isApprovedLimitReached) {
+      alert('Free Plan limit reached (Max 3 Approved Testimonials). Please upgrade to Starter or Pro to approve more.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/testimonials/moderate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestimonials((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, status: action === 'approve' ? 'approved' : 'rejected' } : t))
+        );
+      }
+    } catch (err) {
+      alert('Status update failed');
+    }
+  };
+
+  const handleGenerateAiPack = async (item) => {
+    if (aiCredits <= 0) {
+      alert('You have 0 AI Credits remaining. Please upgrade or top-up (+20 Credits for ₹199 / $5).');
+      return;
+    }
+
+    setGeneratingAiId(item.id);
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testimonialId: item.id,
+          reviewText: item.reviewText,
+          clientName: item.clientName,
+          company: item.company || 'Customer'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiAssets((prev) => ({ ...prev, [item.id]: data.assets }));
+        setAiCredits((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      alert('AI generation service error');
+    } finally {
+      setGeneratingAiId(null);
+    }
+  };
+
+  const handleGenerateLink = async (e) => {
+    e.preventDefault();
+    if (isRequestLimitReached) {
+      alert('Monthly invite limit reached (10/10 on Free Plan). Please upgrade to send more invites.');
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const res = await fetch('/api/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId,
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim()
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGeneratedLink(data.inviteUrl);
+        setRequestsSent((prev) => prev + 1);
+        setClientName('');
+        setClientEmail('');
+      }
+    } catch (err) {
+      alert('Error creating invite link');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const exportCSV = () => {
+    if (plan === 'free' || plan === 'starter') {
+      alert('CSV Export is available on Pro and Agency plans.');
+      return;
+    }
+    if (testimonials.length === 0) return;
+    const headers = ['ID', 'Client Name', 'Email', 'Rating', 'Review', 'Video URL', 'Status', 'Date'];
+    const rows = testimonials.map((t) => [
+      t.id,
+      `"${t.clientName || ''}"`,
+      `"${t.clientEmail || ''}"`,
+      t.rating,
+      `"${(t.reviewText || '').replace(/"/g, '""')}"`,
+      `"${t.videoUrl || ''}"`,
+      t.status,
+      t.createdAt
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'truproof_testimonials.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredTestimonials = testimonials.filter((t) => {
+    if (filter === 'all') return true;
+    return t.status === filter;
+  });
+
+  // Agar user details load ho rahi hain toh loader dikhega
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  // Agar user logged in nahi hai, toh bina kisi dummy screen ke seedha login page par redirect hoga
+  if (!user) {
+    return <RedirectToSignIn />;
+  }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white overflow-x-hidden">
-      {/* Top Navigation */}
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-4 sm:px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-xl sm:text-2xl tracking-tight text-blue-500">TruProof</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full border border-blue-500/20">
-              Beta
-            </span>
+    <div className="min-h-screen bg-slate-50 text-slate-900 pb-16 font-sans">
+      {/* Top Header */}
+      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="font-black text-xl tracking-tight text-blue-600">
+            TruProof
+          </Link>
+          <span className="text-[11px] bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200 uppercase">
+            Plan: {plan}
+          </span>
+          <Link 
+            href="/pricing"
+            className="hidden sm:inline-flex items-center gap-1 text-[11px] text-blue-600 font-bold hover:underline"
+          >
+            Upgrade Plan <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-900 px-3 py-1.5 rounded-lg text-xs font-semibold">
+            <Coins className="w-3.5 h-3.5 text-amber-600" />
+            <span>AI Credits: {aiCredits}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-xs sm:text-sm font-medium text-slate-300 hover:text-white transition px-2 py-1">
-              Dashboard
-            </Link>
-            <Link href="/dashboard" className="text-xs sm:text-sm font-semibold bg-blue-600 hover:bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-lg transition">
-              Start Free
-            </Link>
+          <button
+            onClick={exportCSV}
+            className="hidden sm:flex items-center gap-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+          <button
+            onClick={fetchReviews}
+            className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-blue-600 transition"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+          <div className="ml-1 border-l border-slate-200 pl-3 flex items-center">
+            <UserButton afterSignOutUrl="/" />
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24 pb-14 text-center space-y-6">
-        <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-3.5 py-1 rounded-full text-xs font-medium text-blue-400">
-          <Sparkles className="w-3.5 h-3.5" /> Fast Testimonial Collection & AI Repurposing
-        </div>
-        <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-tight">
-          Collect customer testimonials. <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-            Let AI write your marketing assets.
-          </span>
-        </h1>
-        <p className="text-sm sm:text-base md:text-lg text-slate-300 max-w-2xl mx-auto">
-          Built for SaaS founders, agencies, coaches, consultants, and D2C brands. Collect authentic text feedback and turn customer praise into ready-to-publish content.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
-          <Link href="/dashboard" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm px-6 py-3.5 rounded-xl transition shadow-lg shadow-blue-500/20">
-            Start collecting testimonials free <ArrowRight className="w-4 h-4" />
-          </Link>
-          <a href="#demo" className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 font-medium text-sm px-6 py-3.5 rounded-xl transition">
-            See sample widget & demo
-          </a>
-        </div>
-      </section>
-
-      {/* 4-Step Process */}
-      <section className="max-w-5xl mx-auto px-4 sm:px-6 py-14 border-t border-slate-800/80">
-        <div className="text-center space-y-2 mb-10">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">How TruProof Works</h2>
-          <p className="text-xs sm:text-sm text-slate-400">From client review to marketing-ready copy in 4 simple steps.</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-xl space-y-2">
-            <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Step 1</span>
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5"><Send className="w-4 h-4 text-blue-400" /> Create Request Link</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">Generate a secure, single-use invite link with a 7-day expiration window.</p>
-          </div>
-          <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-xl space-y-2">
-            <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Step 2</span>
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5"><FileText className="w-4 h-4 text-blue-400" /> Client Submits</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">Customers submit rating, text, or external video URLs (Loom, YouTube) with zero signups.</p>
-          </div>
-          <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-xl space-y-2">
-            <span className="text-xs font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Step 3</span>
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5"><Code2 className="w-4 h-4 text-blue-400" /> Moderate & Embed</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">Approve reviews in 1 click and embed responsive cards on your website.</p>
-          </div>
-          <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-xl space-y-2">
-            <span className="text-xs font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">Step 4</span>
-            <h3 className="text-sm font-bold text-white flex items-center gap-1.5"><Sparkles className="w-4 h-4 text-indigo-400" /> AI Marketing Assets</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">Gemini transforms feedback into LinkedIn posts, tweets, case studies, and ad copy.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Demo Section */}
-      <section id="demo" className="max-w-5xl mx-auto px-4 sm:px-6 py-14 border-t border-slate-800/80 space-y-6">
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">Interactive Product Preview</h2>
-        </div>
-        <div className="flex justify-center">
-          <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex gap-1 text-xs">
-            <button onClick={() => setActiveTab('widget')} className={`px-3 py-1.5 rounded-lg font-medium transition ${activeTab === 'widget' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>Public Testimonial Card</button>
-            <button onClick={() => setActiveTab('ai')} className={`px-3 py-1.5 rounded-lg font-medium transition ${activeTab === 'ai' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>AI-Generated Copies</button>
-          </div>
-        </div>
-        <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 max-w-2xl mx-auto shadow-inner">
-          {activeTab === 'widget' ? (
-            <div className="bg-white text-slate-900 rounded-xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />)}
-              </div>
-              <p className="text-sm text-slate-800 leading-relaxed">"TruProof helped us collect 12 authentic client testimonials in our first week. Embedding the responsive wall took less than 2 minutes."</p>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-bold text-slate-900">Alex Carter</p>
-                  <p className="text-slate-500 text-[11px]">Founder, SaaSMetrics</p>
-                </div>
-                <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3" /> Verified
-                </span>
-              </div>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 space-y-6">
+        {/* Contextual Upgrade Alert if Limits Approaching */}
+        {isApprovedLimitReached && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5 text-xs text-amber-800">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>You have reached the Free Plan limit of <strong>3 approved testimonials</strong>. Upgrade to Pro for unlimited reviews and removal of TruProof branding.</span>
             </div>
-          ) : (
-            <div className="space-y-3 text-left text-xs">
-              <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
-                <span className="font-bold text-blue-400 block mb-1">LinkedIn Post</span>
-                <p className="text-slate-300">"Proof drives conversion. Alex Carter from SaaSMetrics just shared how collecting structured testimonials moved the needle. Here are 3 takeaways..."</p>
-              </div>
-              <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700">
-                <span className="font-bold text-indigo-400 block mb-1">Micro Case Study</span>
-                <p className="text-slate-300">Problem: Low landing page social proof.<br />Result: 12 authentic testimonials gathered in Week 1.<br />Quote: "Embedding the wall took less than 2 minutes."</p>
-              </div>
+            <Link
+              href="/pricing"
+              className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg transition"
+            >
+              Upgrade Now
+            </Link>
+          </div>
+        )}
+
+        {/* Metric Cards & Usage Meters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Received</p>
+              <MessageSquare className="w-5 h-5 text-blue-500 opacity-40" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800">{totalCount}</h3>
+            <p className="text-[11px] text-slate-400">Monthly Invites: {requestsSent} / {currentLimit.maxRequests}</p>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Approved (Live)</p>
+              <CheckCircle className="w-5 h-5 text-emerald-500 opacity-40" />
+            </div>
+            <h3 className="text-2xl font-bold text-emerald-600">{approvedCount}</h3>
+            <p className="text-[11px] text-slate-400">
+              Limit: {plan === 'free' ? `${approvedCount} / 3 approved` : 'Unlimited'}
+            </p>
+          </div>
+
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Pending Moderation</p>
+              <Clock className="w-5 h-5 text-amber-500 opacity-40" />
+            </div>
+            <h3 className="text-2xl font-bold text-amber-500">{pendingCount}</h3>
+            <p className="text-[11px] text-slate-400">Ready to review & publish</p>
+          </div>
+        </div>
+
+        {/* Viral Growth & Referral Loop Banner */}
+        <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="space-y-1 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2">
+              <Gift className="w-4 h-4 text-indigo-600" />
+              <span className="font-bold text-xs text-indigo-950 uppercase tracking-wider">Referral Program</span>
+            </div>
+            <p className="text-xs text-indigo-900">
+              <strong>Invite a founder, get 1 month of Pro free!</strong> Share your link with creators and SaaS builders.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-white border border-indigo-200 rounded-xl p-1.5 w-full sm:w-auto">
+            <code className="text-xs font-mono text-indigo-900 px-2 truncate max-w-[220px]">{referralLink}</code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(referralLink);
+                setCopiedRef(true);
+                setTimeout(() => setCopiedRef(false), 2000);
+              }}
+              className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium transition"
+            >
+              {copiedRef ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+
+        {/* Embed Widget Generator */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Code className="w-4 h-4 text-blue-600" />
+            <h2 className="text-sm font-bold text-slate-900">Embed Testimonials on Your Website</h2>
+          </div>
+          <p className="text-xs text-slate-600 mb-3">Copy and paste this HTML iframe tag into your WordPress, Webflow, Framer, or custom landing page:</p>
+          <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-lg p-2.5">
+            <code className="text-xs font-mono text-slate-700 truncate flex-1">{embedCodeSnippet}</code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(embedCodeSnippet);
+                setCopiedEmbed(true);
+                setTimeout(() => setCopiedEmbed(false), 2000);
+              }}
+              className="shrink-0 flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-md font-medium transition"
+            >
+              {copiedEmbed ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedEmbed ? 'Copied' : 'Copy Code'}
+            </button>
+          </div>
+        </div>
+
+        {/* Generate Link Box */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-800 mb-1">Create 7-Day Expiring Invite Link</h2>
+          <p className="text-xs text-slate-500 mb-4">Send this secure link to verified clients to collect text or video reviews.</p>
+
+          <form onSubmit={handleGenerateLink} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <input
+              type="text"
+              placeholder="Client Name (optional)"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="email"
+              placeholder="Client Email (optional)"
+              value={clientEmail}
+              onChange={(e) => setClientEmail(e.target.value)}
+              className="px-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={generating || isRequestLimitReached}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg px-4 py-2 transition disabled:opacity-50"
+            >
+              {generating ? 'Generating...' : isRequestLimitReached ? 'Limit Reached' : 'Generate Invite Link'}
+            </button>
+          </form>
+
+          {generatedLink && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between gap-2">
+              <span className="text-xs text-blue-900 font-mono truncate">{generatedLink}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedLink);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2000);
+                }}
+                className="shrink-0 flex items-center gap-1 bg-white border border-blue-300 text-blue-700 text-xs px-2.5 py-1 rounded font-medium hover:bg-blue-100"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedLink ? 'Copied' : 'Copy'}
+              </button>
             </div>
           )}
         </div>
-      </section>
 
-      {/* Pricing Section */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 py-14 border-t border-slate-800/80 space-y-8">
-        <div className="text-center space-y-4">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">Simple, Scalable Pricing</h2>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto">
-            Free forever tier to get started. No credit card required. Upgrade when you grow.
-          </p>
-
-          {/* Toggles */}
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 pt-4">
-            <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex gap-1 text-xs">
-              <button onClick={() => setCurrency('INR')} className={`px-4 py-2 rounded-lg font-bold transition ${currency === 'INR' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>🇮🇳 INR</button>
-              <button onClick={() => setCurrency('USD')} className={`px-4 py-2 rounded-lg font-bold transition ${currency === 'USD' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'}`}>🌍 USD</button>
-            </div>
-            <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex gap-1 text-xs">
-              <button onClick={() => setBilling('monthly')} className={`px-4 py-2 rounded-lg font-bold transition ${billing === 'monthly' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>Monthly</button>
-              <button onClick={() => setBilling('yearly')} className={`px-4 py-2 rounded-lg font-bold transition flex items-center gap-1 ${billing === 'yearly' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-                Yearly <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/20">Save 20%</span>
-              </button>
+        {/* Moderation Queue */}
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-800">Testimonials Moderation Queue</h2>
+            <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+              {['all', 'pending', 'approved', 'rejected'].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setFilter(item)}
+                  className={`px-3 py-1 rounded-md capitalize transition ${
+                    filter === item ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
           </div>
-        </div>
 
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
-          
-          {/* FREE */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col">
-            <div className="mb-4">
-              <h3 className="text-base font-bold text-white">Free</h3>
-              <p className="text-[11px] text-slate-400 mt-1">For organic early growth.</p>
-              <div className="text-2xl font-extrabold text-white mt-4">{currency === 'INR' ? '₹0' : '$0'}</div>
-            </div>
-            <ul className="space-y-2.5 text-xs text-slate-300 flex-1">
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" /> 10 requests / month</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" /> 3 approved testimonials</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-slate-500 shrink-0" /> 1 Embed Widget</li>
-              <li className="flex items-start gap-2 text-slate-500"><span className="text-slate-600 font-bold shrink-0">✕</span> TruProof branding on widget</li>
-              <li className="flex items-start gap-2 text-slate-500"><span className="text-slate-600 font-bold shrink-0">✕</span> No AI Credits</li>
-            </ul>
-            <Link href="/dashboard" className="mt-6 block text-center bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">Start Free</Link>
-          </div>
+          <div className="divide-y divide-slate-100">
+            {loading ? (
+              <div className="p-8 text-center text-xs text-slate-500">Loading reviews...</div>
+            ) : filteredTestimonials.length === 0 ? (
+              <div className="p-8 text-center text-xs text-slate-500">No testimonials found for this filter.</div>
+            ) : (
+              filteredTestimonials.map((item) => (
+                <div key={item.id} className="p-5 space-y-4">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-1.5 max-w-2xl">
+                      <div className="flex items-center gap-2">
+                        <div className="flex">
+                          {[...Array(item.rating || 5)].map((_, i) => (
+                            <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                          ))}
+                        </div>
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                            item.status === 'approved'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : item.status === 'rejected'
+                              ? 'bg-red-50 text-red-600'
+                              : 'bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          {item.status || 'pending'}
+                        </span>
+                      </div>
 
-          {/* STARTER */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col">
-            <div className="mb-4">
-              <h3 className="text-base font-bold text-white">Starter</h3>
-              <p className="text-[11px] text-slate-400 mt-1">For focused creators.</p>
-              <div className="text-2xl font-extrabold text-white mt-4">
-                {currency === 'INR' ? (billing === 'monthly' ? '₹299' : '₹2,499') : (billing === 'monthly' ? '$9' : '$79')}
-                <span className="text-[10px] font-normal text-slate-400"> / {billing === 'monthly' ? 'mo' : 'yr'}</span>
-              </div>
-            </div>
-            <ul className="space-y-2.5 text-xs text-slate-300 flex-1">
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 50 requests / month</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> 15 approved testimonials</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> Email request templates</li>
-              <li className="flex items-start gap-2 text-emerald-200"><CheckCircle2 className="w-4 h-4 shrink-0" /> 3 Trial AI Credits</li>
-              <li className="flex items-start gap-2 text-slate-500"><span className="text-slate-600 font-bold shrink-0">✕</span> TruProof branding on widget</li>
-            </ul>
-            <Link href="/dashboard" className="mt-6 block text-center bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">Upgrade to Starter</Link>
-          </div>
+                      <p className="text-sm text-slate-800 leading-relaxed font-normal">"{item.reviewText}"</p>
 
-          {/* PRO (Founding Offer) */}
-          <div className="bg-gradient-to-b from-blue-900/40 to-slate-900/80 border border-blue-500 rounded-2xl p-6 flex flex-col relative shadow-[0_0_20px_rgba(59,130,246,0.15)]">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
-              <Zap className="w-3 h-3" /> Founding Member Offer
-            </div>
-            <div className="mb-4 pt-2">
-              <h3 className="text-base font-bold text-white">Pro</h3>
-              <p className="text-[11px] text-blue-300 mt-1">For growing SaaS & Agencies.</p>
-              <div className="mt-3 flex items-end gap-2">
-                <div className="text-3xl font-black text-white">
-                  {currency === 'INR' 
-                    ? (billing === 'monthly' ? '₹499' : '₹6,999') 
-                    : (billing === 'monthly' ? '$12' : '$159')}
-                  <span className="text-[10px] font-normal text-slate-400"> / {billing === 'monthly' ? 'mo' : 'yr'}</span>
+                      {item.videoUrl && (
+                        <a
+                          href={item.videoUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium"
+                        >
+                          <Video className="w-3.5 h-3.5" /> View External Video (Loom / YouTube)
+                        </a>
+                      )}
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <span className="font-semibold text-slate-700">{item.clientName}</span>
+                        {item.company && <span>• {item.company}</span>}
+                        <span>• {item.clientEmail}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleGenerateAiPack(item)}
+                        disabled={generatingAiId === item.id}
+                        className="flex items-center gap-1.5 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg font-medium transition disabled:opacity-50"
+                      >
+                        {generatingAiId === item.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                        )}
+                        Generate AI Pack (-1 credit)
+                      </button>
+
+                      {item.status !== 'approved' && (
+                        <button
+                          onClick={() => handleModerate(item.id, 'approve')}
+                          className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg font-medium transition"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Approve
+                        </button>
+                      )}
+                      {item.status !== 'rejected' && (
+                        <button
+                          onClick={() => handleModerate(item.id, 'reject')}
+                          className="flex items-center gap-1 text-xs bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg font-medium transition"
+                        >
+                          <X className="w-3.5 h-3.5" /> Reject
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {aiAssets[item.id] && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-3 space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <span className="text-xs font-bold text-indigo-700 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" /> Auto-Generated Marketing Copies
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div className="bg-white p-3 rounded-lg border border-slate-200">
+                          <span className="font-semibold text-slate-700 block mb-1">LinkedIn Post</span>
+                          <p className="text-slate-600 whitespace-pre-line">{aiAssets[item.id].linkedInPost}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-lg border border-slate-200">
+                          <span className="font-semibold text-slate-700 block mb-1">Twitter / X Post</span>
+                          <p className="text-slate-600 whitespace-pre-line">{aiAssets[item.id].twitterThread}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-lg border border-slate-200">
+                          <span className="font-semibold text-slate-700 block mb-1">Micro Case Study</span>
+                          <p className="text-slate-600 whitespace-pre-line">{aiAssets[item.id].caseStudy}</p>
+                        </div>
+                        <div className="bg-white p-3 rounded-lg border border-slate-200">
+                          <span className="font-semibold text-slate-700 block mb-1">Ad Copy / Headline</span>
+                          <p className="text-slate-600 whitespace-pre-line">{aiAssets[item.id].adCopy}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {billing === 'monthly' && (
-                  <span className="text-xs text-slate-500 line-through mb-1.5">{currency === 'INR' ? '₹799' : '$19'}</span>
-                )}
-              </div>
-              {billing === 'monthly' && (
-                <div className="text-[10px] text-blue-400 mt-1 font-medium bg-blue-500/10 px-2 py-1 rounded inline-block">
-                  Price locked for 12 months. 23/100 spots left.
-                </div>
-              )}
-            </div>
-            <ul className="space-y-2.5 text-xs text-slate-300 flex-1">
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> 300 requests / month</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> <strong>Unlimited</strong> text testimonials</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> 3 Widgets + Custom Branding</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> Remove TruProof branding</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" /> 20 AI Packs / month</li>
-            </ul>
-            <Link href="/dashboard" className="mt-6 block text-center bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2.5 rounded-lg transition shadow-md shadow-blue-500/20">Upgrade to Pro</Link>
-          </div>
-
-          {/* AGENCY */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col">
-            <div className="mb-4">
-              <h3 className="text-base font-bold text-white">Agency</h3>
-              <p className="text-[11px] text-slate-400 mt-1">For scale & client management.</p>
-              <div className="text-2xl font-extrabold text-white mt-4">
-                {currency === 'INR' ? (billing === 'monthly' ? '₹1,999' : '₹16,999') : (billing === 'monthly' ? '$49' : '$399')}
-                <span className="text-[10px] font-normal text-slate-400"> / {billing === 'monthly' ? 'mo' : 'yr'}</span>
-              </div>
-            </div>
-            <ul className="space-y-2.5 text-xs text-slate-300 flex-1">
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> 1,500 requests / month</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> 5 client workspaces</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> White-label widgets</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> Team access</li>
-              <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-indigo-400 shrink-0" /> 100 AI Packs / month</li>
-            </ul>
-            <Link href="/dashboard" className="mt-6 block text-center bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">Upgrade to Agency</Link>
-          </div>
-
-        </div>
-
-        {/* AI Logic Footer */}
-        <div className="max-w-4xl mx-auto pt-4 flex flex-col items-center text-center">
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-400 bg-slate-900/50 border border-slate-800 px-4 py-2 rounded-full">
-            <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-            <span><strong>What is an AI Pack?</strong> 1 Pack = turns 1 testimonial into a Case Study, LinkedIn post, X thread, and Ad copy.</span>
-          </div>
-          <p className="text-[10px] text-slate-500 mt-2">Need more AI? Top-up anytime ({currency === 'INR' ? '₹199' : '$5'} for 20 AI packs).</p>
-        </div>
-      </section>
-
-      {/* Compliance Footer */}
-      <footer className="border-t border-slate-800 bg-slate-950 py-10 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-300">TruProof</span>
-            <span>© 2026. All rights reserved.</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link href="/privacy" className="hover:text-slate-300 transition">Privacy Policy</Link>
-            <span>•</span>
-            <Link href="/terms" className="hover:text-slate-300 transition">Terms of Service</Link>
-            <span>•</span>
-            <Link href="/refund" className="hover:text-slate-300 transition">Refund Policy</Link>
+              ))
+            )}
           </div>
         </div>
-      </footer>
+      </main>
     </div>
   );
 }
