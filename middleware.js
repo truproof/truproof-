@@ -1,17 +1,25 @@
-import { authMiddleware } from "@clerk/nextjs";
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 
-export default authMiddleware({
-  // Ye routes public rahenge taaki koi bhi anjaan visitor dekh sake
-  publicRoutes: [
-    "/",
-    "/pricing",
-    "/embed/(.*)",
-    "/review/(.*)",
-    "/api/testimonials",
-    "/api/requests"
-  ],
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/pricing',
+  '/embed(.*)',
+  '/review(.*)',
+  '/api/testimonials(.*)',
+  '/api/requests(.*)'
+]);
+
+export default clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request)) {
+    await auth.protect();
+  }
 });
 
 export const config = {
-  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+  matcher: [
+    // Skip Next.js internals and all static files
+    '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
+  ],
 };
