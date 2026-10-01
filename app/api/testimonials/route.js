@@ -21,6 +21,7 @@ function sanitize(str) {
   return str.replace(/<[^>]*>?/gm, '').trim();
 }
 
+// 1. GET: Sabhi reviews bina kisi galat filter ke lane ke liye
 export async function GET(request) {
   let client;
   try {
@@ -31,13 +32,12 @@ export async function GET(request) {
     let queryText = 'SELECT * FROM "Testimonial" WHERE 1=1';
     let queryParams = [];
 
-    // Filter by businessId if provided
-    if (businessId) {
+    // Agar businessId di ho toh filter karein, warna sab dikhayein
+    if (businessId && businessId !== 'default-biz') {
       queryParams.push(businessId);
-      queryText += ` AND "businessId" = $${queryParams.length}`;
+      queryText += ` AND ("businessId" = $${queryParams.length} OR "businessId" = 'default-biz')`;
     }
 
-    // Filter by status only if specific status selected (not 'all')
     if (status && status !== 'all') {
       queryParams.push(status);
       queryText += ` AND "status" = $${queryParams.length}`;
@@ -57,6 +57,7 @@ export async function GET(request) {
   }
 }
 
+// 2. POST: Naya review database mein sahi se daalne ke liye
 export async function POST(request) {
   let client;
   try {
@@ -85,14 +86,14 @@ export async function POST(request) {
       }
     }
 
-    // Ensure business exists in DB
+    // Business table me row ensure karein
     await client.query(`
       INSERT INTO "Business" ("id", "name", "email", "plan")
       VALUES ($1, $2, $3, 'free')
       ON CONFLICT ("id") DO NOTHING;
     `, [targetBusinessId, 'TruProof User', 'user@truproof.app']);
 
-    // Insert testimonial as pending
+    // Testimonial insert karein
     const insertRes = await client.query(
       `INSERT INTO "Testimonial" 
        ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "videoUrl", "status")
