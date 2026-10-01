@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useUser, UserButton, RedirectToSignIn } from '@clerk/nextjs';
 import { 
   Check, X, Copy, RefreshCw, Star, MessageSquare, Clock, CheckCircle2, 
-  Sparkles, Loader2, Code2, Download, Coins, Video, ArrowUpRight, Gift, 
-  AlertCircle, LayoutDashboard, Share2, ShieldCheck, ExternalLink
+  Sparkles, Loader2, Code2, Coins, ArrowUpRight, Gift, 
+  LayoutDashboard, ShieldCheck, ExternalLink, Link2
 } from 'lucide-react';
 
 export default function FounderDashboard() {
@@ -23,6 +23,7 @@ export default function FounderDashboard() {
   const [generatedLink, setGeneratedLink] = useState('');
   const [generating, setGenerating] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedDirectEmbed, setCopiedDirectEmbed] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
 
@@ -34,6 +35,8 @@ export default function FounderDashboard() {
 
   const referralCode = user?.id ? user.id.slice(-6).toUpperCase() : 'TRU77';
   const referralLink = `https://truproof.vercel.app?ref=${referralCode}`;
+  
+  const directEmbedUrl = `https://truproof.vercel.app/embed/${businessId}`;
   const embedCodeSnippet = `<iframe src="https://truproof.vercel.app/embed/${businessId}" width="100%" height="450" frameborder="0" loading="lazy"></iframe>`;
 
   const limits = {
@@ -468,30 +471,69 @@ export default function FounderDashboard() {
           </div>
         )}
 
-        {/* Tab 2: Embed Widget */}
+        {/* Tab 2: Embed Widget (UPDATED & ACCESSIBLE) */}
         {activeTab === 'embed' && (
           <div className="max-w-3xl space-y-6">
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Code2 className="w-5 h-5 text-blue-500" />
-                <h3 className="text-base font-bold text-white">Embed Testimonials on Your Site</h3>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Paste this HTML snippet into any WordPress, Webflow, Framer, Shopify, or custom HTML page:
-              </p>
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-3">
-                <code className="text-xs font-mono text-slate-300 truncate flex-1">{embedCodeSnippet}</code>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(embedCodeSnippet);
-                    setCopiedEmbed(true);
-                    setTimeout(() => setCopiedEmbed(false), 2000);
-                  }}
-                  className="shrink-0 flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6">
+              <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <Code2 className="w-5 h-5 text-blue-500" />
+                  <div>
+                    <h3 className="text-base font-bold text-white">Embed Testimonials on Your Site</h3>
+                    <p className="text-xs text-slate-400">Share direct link or paste code on WordPress, Shopify, Framer etc.</p>
+                  </div>
+                </div>
+                {/* Seedha naya tab kholne ke liye one-click button */}
+                <a
+                  href={`/embed/${businessId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition shadow-lg shadow-blue-600/20"
                 >
-                  {copiedEmbed ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copiedEmbed ? 'Copied' : 'Copy Tag'}
-                </button>
+                  <ExternalLink className="w-3.5 h-3.5" /> Open Live Preview ↗
+                </a>
+              </div>
+
+              {/* 1. Direct Web Link */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-blue-400" /> Direct Link (Browser / Client share)
+                </label>
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <code className="text-xs font-mono text-blue-300 truncate flex-1">{directEmbedUrl}</code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(directEmbedUrl);
+                      setCopiedDirectEmbed(true);
+                      setTimeout(() => setCopiedDirectEmbed(false), 2000);
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                  >
+                    {copiedDirectEmbed ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedDirectEmbed ? 'Copied Link' : 'Copy Link'}
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. HTML Iframe Code */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Code2 className="w-3.5 h-3.5 text-indigo-400" /> HTML Embed Tag (Website source code)
+                </label>
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <code className="text-xs font-mono text-slate-400 truncate flex-1">{embedCodeSnippet}</code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(embedCodeSnippet);
+                      setCopiedEmbed(true);
+                      setTimeout(() => setCopiedEmbed(false), 2000);
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                  >
+                    {copiedEmbed ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedEmbed ? 'Copied Tag' : 'Copy Code'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
