@@ -25,15 +25,22 @@ export async function GET(request) {
   let client;
   try {
     const { searchParams } = new URL(request.url);
-    const businessId = searchParams.get('businessId') || 'default-biz';
+    const businessId = searchParams.get('businessId');
     const status = searchParams.get('status');
 
-    let queryText = 'SELECT * FROM "Testimonial" WHERE "businessId" = $1';
-    let queryParams = [businessId];
+    let queryText = 'SELECT * FROM "Testimonial" WHERE 1=1';
+    let queryParams = [];
 
+    // Filter by businessId if provided
+    if (businessId) {
+      queryParams.push(businessId);
+      queryText += ` AND "businessId" = $${queryParams.length}`;
+    }
+
+    // Filter by status only if specific status selected (not 'all')
     if (status && status !== 'all') {
-      queryText += ' AND "status" = $2';
       queryParams.push(status);
+      queryText += ` AND "status" = $${queryParams.length}`;
     }
 
     queryText += ' ORDER BY "createdAt" DESC';
@@ -67,7 +74,6 @@ export async function POST(request) {
 
     client = await pool.connect();
 
-    // 1. Resolve businessId from token or payload
     let targetBusinessId = bodyBizId || 'default-biz';
     if (token) {
       const reqRes = await client.query(
@@ -79,14 +85,14 @@ export async function POST(request) {
       }
     }
 
-    // 2. Ensure Business row exists for this businessId to avoid foreign key failure
+    // Ensure business exists in DB
     await client.query(`
       INSERT INTO "Business" ("id", "name", "email", "plan")
       VALUES ($1, $2, $3, 'free')
       ON CONFLICT ("id") DO NOTHING;
     `, [targetBusinessId, 'TruProof User', 'user@truproof.app']);
 
-    // 3. Insert Testimonial with 'pending' status so it shows up in moderation queue
+    // Insert testimonial as pending
     const insertRes = await client.query(
       `INSERT INTO "Testimonial" 
        ("businessId", "clientName", "clientEmail", "company", "avatarUrl", "rating", "reviewText", "videoUrl", "status")
@@ -105,7 +111,6 @@ export async function POST(request) {
       ]
     );
 
-    // 4. Mark token used if applicable
     if (token) {
       await client.query('UPDATE "Request" SET "isUsed" = true WHERE "token" = $1', [token]);
     }
