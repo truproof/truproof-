@@ -4,14 +4,32 @@ import React from 'react';
 import Link from 'next/link';
 import { 
   ShieldCheck, Star, ArrowRight, CheckCircle2, Sparkles, 
-  Code2, Zap, LayoutDashboard, ChevronRight, Gift 
+  Code2, Zap, LayoutDashboard, ChevronRight, Send, CheckSquare, Layers
 } from 'lucide-react';
 
 export default function LandingPage() {
+  const steps = [
+    {
+      num: '01',
+      title: 'Generate 7-Day Expiring Invite',
+      desc: 'Create secure, single-use review links in seconds. Eliminates fake spam reviews and builds authentic buyer trust.'
+    },
+    {
+      num: '02',
+      title: 'Client Submits Feedback',
+      desc: 'Your client opens a clean, frictionless form to leave a rating, authentic review, or link a video testimonial.'
+    },
+    {
+      num: '03',
+      title: 'Approve & Embed Everywhere',
+      desc: 'Moderate submissions in 1 click. Copy our lightweight iframe widget onto WordPress, Webflow, Shopify, or Framer.'
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
       {/* Navigation */}
-      <nav className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+      <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-500 tracking-tight">
             <ShieldCheck className="w-6 h-6 text-blue-500" /> TruProof
@@ -32,7 +50,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-20 pb-16 px-4 text-center max-w-4xl mx-auto space-y-6">
+      <section className="pt-20 pb-14 px-4 text-center max-w-4xl mx-auto space-y-6">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-medium">
           <Sparkles className="w-3.5 h-3.5" /> Next-Gen Social Proof for Founders & Creators
         </div>
@@ -63,7 +81,6 @@ export default function LandingPage() {
           </Link>
         </div>
 
-        {/* Micro Social Proof */}
         <div className="pt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
           <div className="flex text-amber-400">
             {[...Array(5)].map((_, i) => (
@@ -74,8 +91,29 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 3-Step "How It Works" Section */}
+      <section className="max-w-5xl mx-auto px-4 py-12 border-t border-slate-900">
+        <div className="text-center space-y-2 mb-10">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 px-3 py-1 rounded-full">
+            Simple 3-Step Workflow
+          </span>
+          <h2 className="text-2xl sm:text-3xl font-black text-white">How TruProof Works</h2>
+          <p className="text-xs text-slate-400">Collect, approve, and showcase authentic testimonials in under 3 minutes.</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {steps.map((s, idx) => (
+            <div key={idx} className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl relative space-y-3">
+              <span className="text-3xl font-black text-blue-500/30">{s.num}</span>
+              <h3 className="font-bold text-white text-base">{s.title}</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Feature Highlights Grid */}
-      <section className="max-w-5xl mx-auto px-4 py-12">
+      <section className="max-w-5xl mx-auto px-4 py-12 border-t border-slate-900">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl space-y-3">
             <div className="w-10 h-10 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
@@ -152,8 +190,15 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 py-6 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} TruProof. Built for high-trust founders.
+      <footer className="border-t border-slate-900 py-8 px-4 text-center text-xs text-slate-500 space-y-2">
+        <div className="flex items-center justify-center gap-4 text-slate-400">
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          <span>•</span>
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          <span>•</span>
+          <Link href="/refund" className="hover:underline">Refund Policy</Link>
+        </div>
+        <p>© {new Date().getFullYear()} TruProof. Built for high-trust founders.</p>
       </footer>
     </div>
   );
