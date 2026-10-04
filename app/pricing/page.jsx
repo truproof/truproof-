@@ -2,365 +2,380 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Check, Sparkles, Zap, ShieldCheck, ArrowRight, HelpCircle } from 'lucide-react';
+import { 
+  Check, ShieldCheck, Zap, Sparkles, ChevronDown, ChevronUp, 
+  HelpCircle, Star, ArrowRight, CheckCircle2 
+} from 'lucide-react';
 
 export default function PricingPage() {
-  const [currency, setCurrency] = useState('INR'); // 'INR' | 'USD'
-  const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'annual'
+  const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
+  const [openFaq, setOpenFaq] = useState(null);
 
-  const foundingSpotsLeft = 47; // Live counter indicator
-
-  const pricingData = {
-    INR: {
-      free: { monthly: 0, annual: 0 },
-      starter: { monthly: 299, annual: 2499 },
-      pro: { monthly: 799, annual: 6999, founding: 499 },
-      agency: { monthly: 1999, annual: 16999 },
-      symbol: '₹',
-      aiTopup: '₹199 for 20 AI packs'
-    },
-    USD: {
-      free: { monthly: 0, annual: 0 },
-      starter: { monthly: 9, annual: 79 },
-      pro: { monthly: 19, annual: 159, founding: 12 },
-      agency: { monthly: 49, annual: 399 },
-      symbol: '$',
-      aiTopup: '$5 for 20 AI packs'
-    }
+  const toggleFaq = (index) => {
+    setOpenFaq(openFaq === index ? null : index);
   };
 
-  const current = pricingData[currency];
+  // Co-founder exact pricing definitions
+  const plans = [
+    {
+      name: 'Free',
+      price: '$0',
+      period: 'forever',
+      description: 'Ideal for trying TruProof with zero risk. No credit card required.',
+      highlight: false,
+      ctaText: 'Start Free',
+      ctaLink: '/dashboard',
+      features: [
+        '10 text testimonials total',
+        '1 video testimonial total',
+        '1 live embed widget',
+        '20 AI marketing credits total',
+        'Powered by TruProof badge visible',
+        '7-day expiring invite links',
+        'Direct link sharing'
+      ]
+    },
+    {
+      name: 'Starter',
+      price: billingCycle === 'monthly' ? '$9' : '$90',
+      period: billingCycle === 'monthly' ? '/month' : '/year',
+      subtext: billingCycle === 'yearly' ? 'billed annually (save $18)' : 'billed monthly',
+      description: 'Great for solo freelancers and creators building social proof.',
+      highlight: false,
+      ctaText: 'Get Starter',
+      ctaLink: 'https://buy.stripe.com/test_starter', // Replace with your Stripe Payment Link
+      features: [
+        '50 text testimonials',
+        '5 video testimonials',
+        '3 embed widgets',
+        '100 AI credits / month',
+        'Custom widget styling',
+        'Everything in Free'
+      ]
+    },
+    {
+      name: 'Pro',
+      badge: 'Most Popular',
+      price: billingCycle === 'monthly' ? '$19' : '$190',
+      period: billingCycle === 'monthly' ? '/month' : '/year',
+      subtext: billingCycle === 'yearly' ? 'billed annually (save $38)' : 'billed monthly',
+      description: 'Built for growth-focused founders, consultants, and SaaS builders.',
+      highlight: true,
+      ctaText: 'Upgrade to Pro',
+      ctaLink: 'https://buy.stripe.com/test_pro', // Replace with your Stripe Payment Link
+      features: [
+        'Unlimited text testimonials',
+        '25 video testimonials',
+        'Unlimited embed widgets',
+        '500 AI credits / month',
+        'Remove "TruProof" branding',
+        'CSV data export',
+        'Priority email support'
+      ]
+    },
+    {
+      name: 'Agency',
+      price: billingCycle === 'monthly' ? '$49' : '$490',
+      period: billingCycle === 'monthly' ? '/month' : '/year',
+      subtext: billingCycle === 'yearly' ? 'billed annually (save $98)' : 'billed monthly',
+      description: 'For agencies managing client portfolios and multiple domains.',
+      highlight: false,
+      ctaText: 'Get Agency',
+      ctaLink: 'https://buy.stripe.com/test_agency', // Replace with your Stripe Payment Link
+      features: [
+        'Unlimited text & video reviews',
+        'Unlimited client websites',
+        '2,000 AI credits / month',
+        'Full White-label styling',
+        'Dedicated onboarding support',
+        'Everything in Pro'
+      ]
+    }
+  ];
+
+  const faqs = [
+    {
+      q: 'Can I use TruProof without having a website?',
+      a: 'Yes! TruProof provides a standalone hosted review page link that you can share on social media, in emails, or in your WhatsApp bio even if you do not have a website.'
+    },
+    {
+      q: 'Does it work with WordPress, Webflow, Shopify, and Framer?',
+      a: 'Yes. You simply copy our one-line responsive HTML iframe tag and paste it into any website builder or custom code platform.'
+    },
+    {
+      q: 'Can I collect video testimonials?',
+      a: 'Yes. Clients can submit their review or paste external Loom/YouTube video links, which render natively in your widget.'
+    },
+    {
+      q: 'What does the AI feature generate?',
+      a: 'Our Gemini AI engine turns any approved testimonial into ready-to-post LinkedIn content, Twitter threads, micro case studies, and ad copy headlines with one click.'
+    },
+    {
+      q: 'Can I cancel anytime?',
+      a: 'Yes, absolutely. You can cancel your subscription at any time with a single click. No lock-in contracts.'
+    },
+    {
+      q: 'What payment methods do you support?',
+      a: 'We accept all major credit and debit cards, Apple Pay, and Google Pay securely through Stripe Checkout.'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500 selection:text-white">
-      {/* Header Navigation */}
-      <nav className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
-        <Link href="/" className="text-xl font-black text-blue-500 tracking-tight">
-          TruProof
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="text-xs font-semibold text-slate-300 hover:text-white transition">
-            Dashboard
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+      {/* Top Navbar */}
+      <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-500 tracking-tight">
+            <ShieldCheck className="w-6 h-6 text-blue-500" /> TruProof
           </Link>
-          <Link
-            href="/dashboard"
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition"
-          >
-            Start Free
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-xs font-semibold text-slate-300 hover:text-white transition">
+              Home
+            </Link>
+            <Link
+              href="/dashboard"
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-lg shadow-blue-600/20"
+            >
+              Go to Dashboard
+            </Link>
+          </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-16 space-y-12">
-        {/* Title & Tagline */}
+      {/* Main Container */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-20 space-y-12">
+        {/* Header */}
         <div className="text-center space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-xs font-semibold">
-            <Zap className="w-3.5 h-3.5" /> Simple, Transparent SaaS Pricing
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-medium">
+            <Zap className="w-3.5 h-3.5" /> Simple, Transparent Global Pricing
           </div>
-          <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white">
-            Collect Proof. Convert Visitors. Scale Confidently.
+          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+            Turn Authentic Testimonials Into Real Revenue
           </h1>
           <p className="text-sm sm:text-base text-slate-400">
-            Start completely free. Upgrade as your customer testimonials and AI marketing volume grow.
+            Start free. Upgrade as your business scales. Cancel anytime.
           </p>
 
-          {/* Region Currency & Billing Toggle */}
-          <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
-            {/* Currency Selector */}
-            <div className="bg-slate-800 p-1 rounded-xl flex items-center border border-slate-700 text-xs font-bold">
-              <button
-                onClick={() => setCurrency('INR')}
-                className={`px-3.5 py-1.5 rounded-lg transition ${
-                  currency === 'INR' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                🇮🇳 India (INR)
-              </button>
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-3.5 py-1.5 rounded-lg transition ${
-                  currency === 'USD' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                🌐 Global (USD)
-              </button>
-            </div>
-
-            {/* Monthly / Annual Toggle */}
-            <div className="bg-slate-800 p-1 rounded-xl flex items-center border border-slate-700 text-xs font-bold">
-              <button
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-3.5 py-1.5 rounded-lg transition ${
-                  billingCycle === 'monthly' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBillingCycle('annual')}
-                className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1 transition ${
-                  billingCycle === 'annual' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>Annual</span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">
-                  Save ~2 Months
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Founding Member Banner */}
-        <div className="max-w-4xl mx-auto bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-amber-500/10 border border-amber-500/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="space-y-1 text-center sm:text-left">
-            <div className="flex items-center justify-center sm:justify-start gap-2">
-              <span className="bg-amber-400 text-slate-950 text-[10px] font-black uppercase px-2 py-0.5 rounded">
-                Founding Member Offer
-              </span>
-              <span className="text-xs font-bold text-amber-300">
-                Only {foundingSpotsLeft}/100 Spots Remaining
-              </span>
-            </div>
-            <p className="text-xs text-slate-300">
-              Lock in <strong className="text-white">Pro Plan</strong> for just{' '}
-              <strong className="text-amber-400">
-                {current.symbol}{current.pro.founding}/month
-              </strong>{' '}
-              for your first 12 months. Standard pricing applies thereafter.
-            </p>
-          </div>
-          <Link
-            href="/dashboard"
-            className="shrink-0 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5"
-          >
-            Claim Founding Spot <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {/* 4 Tier Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* 1. Free */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-white">Free</h3>
-                <p className="text-xs text-slate-400 mt-1">For testing out verified social proof.</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-white">{current.symbol}0</span>
-                <span className="text-xs text-slate-400">/month</span>
-              </div>
-              <ul className="text-xs text-slate-300 space-y-2.5 pt-2">
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 10 requests / month</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 3 approved testimonials</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 1 embed widget</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> External video URL links</li>
-                <li className="flex items-center gap-2 text-slate-500">✕ No AI marketing credits</li>
-                <li className="flex items-center gap-2 text-slate-400 font-medium">TruProof branding required</li>
-              </ul>
-            </div>
-            <Link
-              href="/dashboard"
-              className="block w-full text-center py-2.5 rounded-xl text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white transition"
-            >
-              Get Started Free
-            </Link>
-          </div>
-
-          {/* 2. Starter */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-white">Starter</h3>
-                <p className="text-xs text-slate-400 mt-1">For solo creators and early-stage tools.</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-white">
-                  {current.symbol}
-                  {billingCycle === 'monthly' ? current.starter.monthly : Math.round(current.starter.annual / 12)}
-                </span>
-                <span className="text-xs text-slate-400">/month</span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                {billingCycle === 'annual' ? `Billed ${current.symbol}${current.starter.annual}/yr` : 'Billed monthly'}
-              </p>
-              <ul className="text-xs text-slate-300 space-y-2.5 pt-2">
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 50 requests / month</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 15 approved testimonials</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 1 embed widget</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> Basic response analytics</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 3 one-time trial AI credits</li>
-                <li className="flex items-center gap-2 text-slate-400 font-medium">TruProof branding required</li>
-              </ul>
-            </div>
-            <Link
-              href="/dashboard"
-              className="block w-full text-center py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition"
-            >
-              Choose Starter
-            </Link>
-          </div>
-
-          {/* 3. Pro (Popular) */}
-          <div className="bg-slate-800/90 border-2 border-blue-500 rounded-2xl p-6 flex flex-col justify-between space-y-6 relative shadow-xl shadow-blue-500/10">
-            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">
-              Most Popular
+          {/* Monthly / Yearly Billing Toggle */}
+          <div className="pt-4 flex items-center justify-center gap-3">
+            <span className={`text-xs font-semibold ${billingCycle === 'monthly' ? 'text-white' : 'text-slate-400'}`}>
+              Monthly Billing
             </span>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-white flex items-center justify-between">
-                  Pro
-                  <Sparkles className="w-4 h-4 text-blue-400" />
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">For growing SaaS & active businesses.</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-white">
-                  {current.symbol}
-                  {billingCycle === 'monthly' ? current.pro.monthly : Math.round(current.pro.annual / 12)}
-                </span>
-                <span className="text-xs text-slate-400">/month</span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                {billingCycle === 'annual' ? `Billed ${current.symbol}${current.pro.annual}/yr` : 'Billed monthly'}
-              </p>
-              <ul className="text-xs text-slate-200 space-y-2.5 pt-2">
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400" /> 300 requests / month</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400" /> Unlimited approved reviews</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400" /> 3 embed widgets</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400" /> 20 AI Marketing Packs / mo</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400" /> Custom branding & logo</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400 font-bold text-white" /> Remove TruProof branding</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-emerald-400" /> CSV Export & Priority support</li>
-              </ul>
-            </div>
-            <Link
-              href="/dashboard"
-              className="block w-full text-center py-2.5 rounded-xl text-xs font-black bg-blue-500 hover:bg-blue-600 text-white transition"
+            <button
+              onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+              className="w-14 h-7 bg-slate-800 rounded-full p-1 relative border border-slate-700 transition"
+              aria-label="Toggle Billing Cycle"
             >
-              Upgrade to Pro
-            </Link>
-          </div>
-
-          {/* 4. Agency */}
-          <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 flex flex-col justify-between space-y-6">
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-white">Agency</h3>
-                <p className="text-xs text-slate-400 mt-1">For marketing agencies & multiple client brands.</p>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span className="text-3xl font-black text-white">
-                  {current.symbol}
-                  {billingCycle === 'monthly' ? current.agency.monthly : Math.round(current.agency.annual / 12)}
-                </span>
-                <span className="text-xs text-slate-400">/month</span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                {billingCycle === 'annual' ? `Billed ${current.symbol}${current.agency.annual}/yr` : 'Billed monthly'}
-              </p>
-              <ul className="text-xs text-slate-300 space-y-2.5 pt-2">
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 5 client workspaces</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 1,500 requests / month</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> 100 AI Marketing Packs / mo</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> Complete White-label widget</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> Team member seats</li>
-                <li className="flex items-center gap-2"><Check className="w-3.5 h-3.5 text-blue-400" /> Dedicated priority support</li>
-              </ul>
-            </div>
-            <Link
-              href="/dashboard"
-              className="block w-full text-center py-2.5 rounded-xl text-xs font-bold bg-slate-700 hover:bg-slate-600 text-white transition"
-            >
-              Choose Agency
-            </Link>
+              <div 
+                className={`w-5 h-5 rounded-full bg-blue-500 transition-transform ${
+                  billingCycle === 'yearly' ? 'translate-x-7' : 'translate-x-0'
+                }`}
+              />
+            </button>
+            <span className={`text-xs font-semibold flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'text-white' : 'text-slate-400'}`}>
+              Annual Billing
+              <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/20">
+                Save 2 Months
+              </span>
+            </span>
           </div>
         </div>
 
-        {/* AI Top-up Addon Card */}
-        <div className="max-w-2xl mx-auto bg-slate-800/40 border border-slate-700 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-indigo-400" />
-            <div>
-              <p className="text-xs font-bold text-white">Need extra AI Repurposing Credits?</p>
-              <p className="text-[11px] text-slate-400">Pay as you go. No subscription required.</p>
-            </div>
+        {/* Founding Member Offer Box */}
+        <div className="max-w-3xl mx-auto bg-gradient-to-r from-blue-900/30 via-indigo-900/20 to-blue-900/30 border border-blue-500/40 rounded-2xl p-6 text-center space-y-3 relative overflow-hidden shadow-xl">
+          <div className="inline-block bg-blue-500 text-white font-bold text-[11px] uppercase tracking-wider px-3 py-0.5 rounded-full">
+            Limited Launch Deal
           </div>
-          <span className="text-xs font-bold text-indigo-300 bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-lg">
-            {current.aiTopup}
-          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">
+            Founding Member Offer — Save 37% for 12 months
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto">
+            Get complete access to the <strong>Pro Plan for just $12/month</strong> (regularly $19/month). 
+            Available strictly for the first 100 paid founders.
+          </p>
+          <div className="pt-2">
+            <a
+              href="https://buy.stripe.com/test_founding" // Replace with Stripe link for $12 founding plan
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs sm:text-sm px-6 py-3 rounded-xl transition shadow-lg shadow-blue-600/30"
+            >
+              Claim Founding Spot ($12/mo) <ArrowRight className="w-4 h-4" />
+            </a>
+          </div>
         </div>
 
-        {/* Feature Comparison Matrix */}
-        <div className="pt-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-center text-white mb-6">Detailed Plan Comparison</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-700 text-slate-400">
-                  <th className="py-3 px-4">Feature</th>
-                  <th className="py-3 px-4">Free</th>
-                  <th className="py-3 px-4">Starter</th>
-                  <th className="py-3 px-4 text-blue-400">Pro</th>
-                  <th className="py-3 px-4">Agency</th>
+        {/* Pricing Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plans.map((p, idx) => (
+            <div
+              key={idx}
+              className={`rounded-2xl p-6 flex flex-col justify-between border relative transition-all ${
+                p.highlight
+                  ? 'bg-slate-900/90 border-blue-500 shadow-2xl shadow-blue-500/10'
+                  : 'bg-slate-900/50 border-slate-800 hover:border-slate-700'
+              }`}
+            >
+              {p.badge && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-md">
+                  {p.badge}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">{p.name}</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">{p.description}</p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-3xl sm:text-4xl font-black text-white">{p.price}</span>
+                    <span className="text-xs text-slate-400 font-medium">{p.period}</span>
+                  </div>
+                  {p.subtext && <p className="text-[11px] text-blue-400 mt-0.5">{p.subtext}</p>}
+                </div>
+
+                <ul className="space-y-2.5 pt-4 text-xs text-slate-300">
+                  {p.features.map((feat, fIdx) => (
+                    <li key={fIdx} className="flex items-start gap-2">
+                      <Check className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="pt-6 mt-6 border-t border-slate-800/80">
+                <a
+                  href={p.ctaLink}
+                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                    p.highlight
+                      ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                  }`}
+                >
+                  {p.ctaText} <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Feature Comparison Table */}
+        <div className="pt-8 space-y-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-center text-white">Compare Plan Features</h2>
+          <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/40">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-800 bg-slate-900/80 text-slate-300">
+                <tr>
+                  <th className="p-4">Feature</th>
+                  <th className="p-4 text-center">Free</th>
+                  <th className="p-4 text-center">Starter</th>
+                  <th className="p-4 text-center text-blue-400 font-bold">Pro</th>
+                  <th className="p-4 text-center">Agency</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800 text-slate-300">
+              <tbody className="divide-y divide-slate-800/60 text-slate-300">
                 <tr>
-                  <td className="py-3 px-4 font-medium text-white">Monthly Requests</td>
-                  <td className="py-3 px-4">10</td>
-                  <td className="py-3 px-4">50</td>
-                  <td className="py-3 px-4 text-blue-400 font-bold">300</td>
-                  <td className="py-3 px-4">1,500</td>
+                  <td className="p-4 font-medium">Text Testimonials</td>
+                  <td className="p-4 text-center">10 total</td>
+                  <td className="p-4 text-center">50</td>
+                  <td className="p-4 text-center text-blue-400 font-bold">Unlimited</td>
+                  <td className="p-4 text-center">Unlimited</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-medium text-white">Approved Testimonials</td>
-                  <td className="py-3 px-4">3 total</td>
-                  <td className="py-3 px-4">15 total</td>
-                  <td className="py-3 px-4 text-blue-400 font-bold">Unlimited</td>
-                  <td className="py-3 px-4">Unlimited</td>
+                  <td className="p-4 font-medium">Video Testimonials</td>
+                  <td className="p-4 text-center">1 total</td>
+                  <td className="p-4 text-center">5</td>
+                  <td className="p-4 text-center text-blue-400 font-bold">25</td>
+                  <td className="p-4 text-center">Unlimited</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-medium text-white">AI Marketing Packs</td>
-                  <td className="py-3 px-4">✕</td>
-                  <td className="py-3 px-4">3 trial credits</td>
-                  <td className="py-3 px-4 text-blue-400 font-bold">20 / month</td>
-                  <td className="py-3 px-4">100 / month</td>
+                  <td className="p-4 font-medium">Live Embed Widgets</td>
+                  <td className="p-4 text-center">1 widget</td>
+                  <td className="p-4 text-center">3 widgets</td>
+                  <td className="p-4 text-center text-blue-400 font-bold">Unlimited</td>
+                  <td className="p-4 text-center">Unlimited</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-medium text-white">Widgets Allowed</td>
-                  <td className="py-3 px-4">1</td>
-                  <td className="py-3 px-4">1</td>
-                  <td className="py-3 px-4 text-blue-400 font-bold">3</td>
-                  <td className="py-3 px-4">Unlimited (5 workspaces)</td>
+                  <td className="p-4 font-medium">AI Marketing Credits</td>
+                  <td className="p-4 text-center">20 total</td>
+                  <td className="p-4 text-center">100 / mo</td>
+                  <td className="p-4 text-center text-blue-400 font-bold">500 / mo</td>
+                  <td className="p-4 text-center">2,000 / mo</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-medium text-white">TruProof Branding Removal</td>
-                  <td className="py-3 px-4">✕</td>
-                  <td className="py-3 px-4">✕</td>
-                  <td className="py-3 px-4 text-emerald-400 font-bold">✓ Yes</td>
-                  <td className="py-3 px-4 text-emerald-400 font-bold">✓ White-label</td>
+                  <td className="p-4 font-medium">TruProof Branding Removal</td>
+                  <td className="p-4 text-center text-slate-500">Badge Visible</td>
+                  <td className="p-4 text-center text-slate-500">Badge Visible</td>
+                  <td className="p-4 text-center text-emerald-400 font-bold">Yes (Clean)</td>
+                  <td className="p-4 text-center text-emerald-400 font-bold">Yes (White-label)</td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-medium text-white">External Video URL Link</td>
-                  <td className="py-3 px-4">✓</td>
-                  <td className="py-3 px-4">✓</td>
-                  <td className="py-3 px-4 text-blue-400">✓</td>
-                  <td className="py-3 px-4">✓</td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-4 font-medium text-white">CSV Export</td>
-                  <td className="py-3 px-4">✕</td>
-                  <td className="py-3 px-4">✕</td>
-                  <td className="py-3 px-4 text-blue-400">✓</td>
-                  <td className="py-3 px-4">✓</td>
+                  <td className="p-4 font-medium">CSV Data Export</td>
+                  <td className="p-4 text-center text-slate-500">—</td>
+                  <td className="p-4 text-center text-slate-500">—</td>
+                  <td className="p-4 text-center text-emerald-400 font-bold">Included</td>
+                  <td className="p-4 text-center text-emerald-400 font-bold">Included</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* FAQs Section */}
+        <div className="pt-8 max-w-3xl mx-auto space-y-4">
+          <div className="text-center space-y-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Frequently Asked Questions</h2>
+            <p className="text-xs text-slate-400">Everything you need to know about plans and billing.</p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            {faqs.map((faq, fIdx) => (
+              <div 
+                key={fIdx} 
+                className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition cursor-pointer"
+                onClick={() => toggleFaq(fIdx)}
+              >
+                <div className="flex items-center justify-between text-xs sm:text-sm font-semibold text-white">
+                  <span>{faq.q}</span>
+                  {openFaq === fIdx ? <ChevronUp className="w-4 h-4 text-blue-400" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                </div>
+                {openFaq === fIdx && (
+                  <p className="mt-2 text-xs text-slate-400 leading-relaxed border-t border-slate-800/60 pt-2">
+                    {faq.a}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Instant Support & Deal Closing CTA */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 text-center space-y-3 max-w-xl mx-auto">
+          <h3 className="text-base font-bold text-white">Need a custom plan or want to pay via UPI/Wire?</h3>
+          <p className="text-xs text-slate-400">Chat directly with the founder to get immediate account activation.</p>
+          <a
+            href="https://wa.me/?text=Hi%20TruProof%2C%20I%20have%20a%20question%20about%20upgrading%20my%20plan"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition"
+          >
+            Chat on WhatsApp to activate
+          </a>
+        </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-900 py-8 px-4 text-center text-xs text-slate-500 space-y-2">
+        <div className="flex items-center justify-center gap-4 text-slate-400">
+          <Link href="/privacy" className="hover:underline">Privacy Policy</Link>
+          <span>•</span>
+          <Link href="/terms" className="hover:underline">Terms of Service</Link>
+          <span>•</span>
+          <Link href="/refund" className="hover:underline">Refund Policy</Link>
+        </div>
+        <p>© {new Date().getFullYear()} TruProof. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
