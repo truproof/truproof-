@@ -3,22 +3,17 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
-  ShieldCheck, Check, Zap, Sparkles, ArrowRight, 
-  HelpCircle, ChevronDown, ChevronUp, Copy, CheckCircle2, X, QrCode
+  ShieldCheck, Check, Sparkles, ArrowRight, 
+  ChevronDown, ChevronUp, Lock, Globe2
 } from 'lucide-react';
 
 export default function PricingPage() {
-  const [currency, setCurrency] = useState('USD'); // 'USD' or 'INR'
-  const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' or 'annual'
+  const [currency, setCurrency] = useState('USD');
+  const [billingCycle, setBillingCycle] = useState('monthly');
   const [faqOpen, setFaqOpen] = useState(null);
-  
-  // UPI Modal State for Indian payments
-  const [upiModalOpen, setUpiModalOpen] = useState(false);
-  const [selectedPlanDetails, setSelectedPlanDetails] = useState(null);
-  const [copiedUpi, setCopiedUpi] = useState(false);
 
-  // Aapki Official Launch UPI ID (Yahan apni actual UPI ID daal sakte hain)
-  const officialUpiId = "6394427341@pz"; 
+  // TruProof Founding Pro Dodo Checkout Link
+  const DODO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/pdt_0Nozhzoogf1NN88ius8Uw";
 
   const isIndia = currency === 'INR';
   const isAnnual = billingCycle === 'annual';
@@ -27,7 +22,7 @@ export default function PricingPage() {
     {
       id: 'free',
       name: 'Free Starter',
-      desc: 'Perfect for indie hackers testing their initial social proof.',
+      desc: 'Ideal for testing initial social proof and testimonial collection.',
       priceUSD: 0,
       priceINR: 0,
       popular: false,
@@ -39,12 +34,12 @@ export default function PricingPage() {
         'TruProof Watermark'
       ],
       buttonText: 'Start Free Today',
-      link: '/dashboard'
+      isFree: true
     },
     {
       id: 'starter',
       name: 'Starter Pro',
-      desc: 'Ideal for solo creators, consultants, and active freelancers.',
+      desc: 'For solo creators and consultants building trust.',
       priceUSD: isAnnual ? 7 : 9,
       priceINR: isAnnual ? 249 : 299,
       popular: false,
@@ -53,91 +48,79 @@ export default function PricingPage() {
         '3 Custom Embed Widgets',
         'Remove TruProof Branding',
         '100 AI Marketing Credits/mo',
-        'Video Reviews (Loom/YouTube)',
-        'Email Support'
+        'Standard Email Support'
       ],
       buttonText: 'Get Starter Pro',
-      usdLink: 'https://checkout.dodopayments.com/buy/starter-plan',
-      inrAmount: isAnnual ? 2988 : 299
+      isFree: false
     },
     {
-      id: 'pro',
-      name: 'Growth Pro',
-      desc: 'For growing businesses demanding full conversion momentum.',
-      priceUSD: isAnnual ? 15 : 19,
-      priceINR: isAnnual ? 649 : 799,
+      id: 'founding',
+      name: 'Founding Member Pro',
+      desc: 'Exclusive launch deal with complete access and verified badges.',
+      priceUSD: 12,
+      priceINR: 499,
       popular: true,
       features: [
         'Unlimited Verified Testimonials',
         'Unlimited Embed Widgets',
         'Remove Branding Completely',
         '500 AI Marketing Credits/mo',
-        'CSV Data Export',
-        'Priority Founder Support'
+        'CSV Data Export & Analytics',
+        'Lifetime Early-Adopter Deal'
       ],
-      buttonText: 'Unlock Growth Pro',
-      usdLink: 'https://checkout.dodopayments.com/buy/pro-plan',
-      inrAmount: isAnnual ? 7788 : 799
+      buttonText: 'Claim Founding Pro',
+      isFree: false
     },
     {
       id: 'agency',
       name: 'Agency Scale',
-      desc: 'Designed for agencies managing multiple client sites.',
+      desc: 'Designed for agencies handling client testimonials at scale.',
       priceUSD: isAnnual ? 39 : 49,
       priceINR: isAnnual ? 1599 : 1999,
       popular: false,
       features: [
-        'Unlimited Workspaces & Sub-accounts',
+        'Unlimited Workspaces',
         'Custom Domain Embeds',
         '2,000 AI Credits / month',
         'White-label Widget Styling',
-        'Webhook & API Integrations',
-        'Dedicated 1-on-1 Slack Channel'
+        'Priority Founder Support'
       ],
       buttonText: 'Get Agency Scale',
-      usdLink: 'https://checkout.dodopayments.com/buy/agency-plan',
-      inrAmount: isAnnual ? 19188 : 1999
+      isFree: false
     }
   ];
 
-  const handlePlanClick = (plan) => {
-    if (plan.id === 'free') {
+  const handleCheckout = (isFreePlan) => {
+    if (isFreePlan) {
       window.location.href = '/dashboard';
       return;
     }
-
-    if (currency === 'INR') {
-      // Indian users ke liye direct zero-commission UPI popup
-      setSelectedPlanDetails(plan);
-      setUpiModalOpen(true);
-    } else {
-      // Global users ke liye direct payment link
-      window.open(plan.usdLink || 'https://checkout.dodopayments.com', '_blank');
-    }
+    // Secure Dodo Checkout open hoga (Indian + Global payment bina number dikhe)
+    window.open(DODO_CHECKOUT_URL, '_blank');
   };
 
   const faqs = [
     {
       q: 'How does the 7-day expiring invite link work?',
-      a: 'When you create a client request in your dashboard, a unique secure link is generated. Your client has 7 days to submit their rating and testimonial before the token expires, preventing unauthorized or spam entries.'
+      a: 'When you create a client request in your dashboard, a unique secure link is generated. Your client has 7 days to submit their rating and testimonial before the token expires, preventing fake or spam entries.'
     },
     {
-      q: 'Can I switch currencies or cancel my plan anytime?',
-      a: 'Yes. You can switch between USD and INR billing depending on your location. Subscriptions carry no lock-in contract and you can cancel anytime with 1-click.'
+      q: 'Which payment methods are supported?',
+      a: 'We accept global Credit & Debit Cards, Apple Pay, Google Pay, and Indian domestic payment options via our secure checkout.'
+    },
+    {
+      q: 'Is my payment secure?',
+      a: 'Yes, all transactions are 100% encrypted and processed securely through our Merchant of Record infrastructure. No personal banking details or phone numbers are exposed.'
     },
     {
       q: 'What is your refund policy?',
-      a: 'We offer a straightforward, no-questions-asked 7-day money-back guarantee on all paid plans. Email us at support@truproof.com and we process refunds within 5-7 business days.'
-    },
-    {
-      q: 'How does the embed widget integrate with my website?',
-      a: 'You simply copy a single lightweight HTML <iframe> code snippet from your dashboard and paste it into WordPress, Webflow, Shopify, Framer, Wix, or custom React apps.'
+      a: 'We offer an unconditional 7-day money-back guarantee. If you are not satisfied, write to support and your refund will be processed.'
     }
   ];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
-      {/* Navigation */}
+      {/* Navigation Bar */}
       <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-xl font-black text-blue-500 tracking-tight">
@@ -158,13 +141,16 @@ export default function PricingPage() {
       </nav>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-20 space-y-12">
-        {/* Header with Currency & Billing Toggles */}
+        {/* Header */}
         <div className="text-center space-y-4 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-medium">
+            <Globe2 className="w-3.5 h-3.5" /> India & Global Checkout Ready
+          </div>
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
             Simple, High-Trust Pricing
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Automate verified social proof and generate high-converting AI marketing copy in seconds.
+            Collect verified social proof with automated expiration links and boost conversions today.
           </p>
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -184,11 +170,11 @@ export default function PricingPage() {
                   currency === 'INR' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                INR (₹ India / UPI)
+                INR (₹ India)
               </button>
             </div>
 
-            {/* Monthly / Annual Toggle */}
+            {/* Billing Cycle */}
             <div className="bg-slate-900 border border-slate-800 p-1 rounded-xl flex items-center gap-1">
               <button
                 onClick={() => setBillingCycle('monthly')}
@@ -214,20 +200,20 @@ export default function PricingPage() {
         <div className="max-w-3xl mx-auto bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900 border border-blue-500/40 rounded-2xl p-5 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Soft Launch Founding Offer
+              <Sparkles className="w-3 h-3" /> Special Launch Deal
             </span>
-            <h2 className="text-lg font-bold text-white">Get Pro Tier for {isIndia ? '₹499 / mo' : '$12 / mo'} Lifetime</h2>
-            <p className="text-xs text-slate-300">Limited to the first 100 beta founders. Lock in early-adopter pricing permanently.</p>
+            <h2 className="text-lg font-bold text-white">Get Founding Pro Tier for {isIndia ? '₹499' : '$12'}</h2>
+            <p className="text-xs text-slate-300">Instant access • Zero personal numbers exposed • Global & domestic support.</p>
           </div>
           <button
-            onClick={() => handlePlanClick({ id: 'pro', name: 'Founding Member Pro', inrAmount: 499, usdLink: 'https://checkout.dodopayments.com/buy/founding-pro' })}
-            className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-lg shadow-blue-600/25 flex items-center gap-2"
+            onClick={() => handleCheckout(false)}
+            className="shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-lg shadow-blue-600/25 flex items-center gap-2 cursor-pointer"
           >
-            Claim Founding Seat <ArrowRight className="w-3.5 h-3.5" />
+            Claim Founding Deal <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* 4 Pricing Cards Grid */}
+        {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((p) => (
             <div
@@ -240,7 +226,7 @@ export default function PricingPage() {
             >
               {p.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider">
-                  Most Popular
+                  Founding Deal
                 </div>
               )}
 
@@ -254,7 +240,9 @@ export default function PricingPage() {
                   <span className="text-3xl font-black text-white">
                     {isIndia ? `₹${p.priceINR}` : `$${p.priceUSD}`}
                   </span>
-                  <span className="text-xs text-slate-400 font-medium">/ month</span>
+                  <span className="text-xs text-slate-400 font-medium">
+                    {p.id === 'founding' ? 'one-time' : '/ month'}
+                  </span>
                 </div>
 
                 <ul className="space-y-2 text-xs text-slate-300 pt-2 border-t border-slate-800/80">
@@ -268,8 +256,8 @@ export default function PricingPage() {
               </div>
 
               <button
-                onClick={() => handlePlanClick(p)}
-                className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                onClick={() => handleCheckout(p.isFree)}
+                className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   p.popular
                     ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20'
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
@@ -279,6 +267,12 @@ export default function PricingPage() {
               </button>
             </div>
           ))}
+        </div>
+
+        {/* Security Assurance */}
+        <div className="flex items-center justify-center gap-2 text-xs text-slate-400 pt-4">
+          <Lock className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Encrypted 256-bit SSL Checkout powered by Dodo Payments</span>
         </div>
 
         {/* FAQs */}
@@ -304,72 +298,6 @@ export default function PricingPage() {
           </div>
         </div>
       </main>
-
-      {/* Zero-Commission UPI Payment Modal (India Users) */}
-      {upiModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-6 space-y-5 relative shadow-2xl">
-            <button
-              onClick={() => setUpiModalOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="text-center space-y-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                <QrCode className="w-3 h-3" /> Instant UPI Activation
-              </span>
-              <h3 className="text-base font-bold text-white">Pay via Any UPI App</h3>
-              <p className="text-xs text-slate-400">
-                Plan: <strong className="text-white">{selectedPlanDetails?.name}</strong> • Amount: <strong className="text-emerald-400">₹{selectedPlanDetails?.inrAmount}</strong>
-              </p>
-            </div>
-
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-center space-y-3">
-              <p className="text-[11px] text-slate-400">Scan via Google Pay, PhonePe, or Paytm:</p>
-              
-              {/* Dynamic QR Code Generator */}
-              <div className="flex justify-center py-1">
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=${officialUpiId}&pn=TruProof&am=${selectedPlanDetails?.inrAmount}&cu=INR`} 
-                  alt="UPI QR Code" 
-                  className="rounded-lg border-2 border-slate-800 p-1 bg-white"
-                />
-              </div>
-
-              <div className="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs">
-                <span className="font-mono text-slate-300">{officialUpiId}</span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(officialUpiId);
-                    setCopiedUpi(true);
-                    setTimeout(() => setCopiedUpi(false), 2000);
-                  }}
-                  className="text-[11px] bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded font-medium flex items-center gap-1"
-                >
-                  {copiedUpi ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  {copiedUpi ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-center text-slate-400 leading-tight">
-              Pay ₹{selectedPlanDetails?.inrAmount} and share reference to <a href="mailto:support@truproof.com" className="text-blue-400 underline">support@truproof.com</a> for immediate account activation.
-            </p>
-
-            <button
-              onClick={() => {
-                alert('Thank you! Once verified, your Pro limits will reflect in your dashboard.');
-                setUpiModalOpen(false);
-              }}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition"
-            >
-              I Have Made The Payment
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-8 px-4 text-center text-xs text-slate-500 space-y-2">
