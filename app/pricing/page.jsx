@@ -13,7 +13,7 @@ export default function PricingPage() {
   const [faqOpen, setFaqOpen] = useState(null);
 
   // TruProof Founding Pro Dodo Checkout Link
-  const DODO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/pdt_0Nozhzoogf1NN88ius8Uw";
+  const DODO_CHECKOUT_URL = "https://checkout.dodopayments.com/buy/pdt_0Nozhzoogf1NN88ius8Uw?quantity=1";
 
   const isIndia = currency === 'INR';
   const isAnnual = billingCycle === 'annual';
