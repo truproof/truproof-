@@ -14,8 +14,8 @@ export const config = {
   matcher: [
     // Next.js internals aur static files skip karein
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    // API routes aur Clerk proxy route allow karein
     '/(api|trpc)(.*)',
-    // Clerk auto-proxy path matcher (prompt ke hisaab se)
     '/__clerk/:path*',
   ],
 };
