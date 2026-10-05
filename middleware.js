@@ -12,9 +12,10 @@ export default clerkMiddleware(async (auth, req) => {
 
 export const config = {
   matcher: [
-    // Next.js internals aur static assets skip karein
+    // Next.js static files aur internals ko chhod kar chalayein
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     '/(api|trpc)(.*)',
-    '/__clerk/(.*)',
+    // Clerk production auto-proxy route (Exact match)
+    '/__clerk/:path*',
   ],
 };
